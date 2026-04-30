@@ -1,0 +1,10 @@
+src/secrets.h
+.pio
+.vscode/
+tools/__pycache__/
+tools/.ruff_cache/
+ios/LEDTicker.xcodeproj/
+ios/build/
+ios/DerivedData/
+ios/Signing.local.xcconfig
+.DS_Store
