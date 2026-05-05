@@ -16,7 +16,7 @@ A simpler version of my other project, [esp32-led-matrix](https://github.com/ssa
 - Onboard RGB LED lights blue during network fetches
 - All settings persist across reboots (NVS flash storage)
 - Fallback messages shown until you set your own via BLE
-- Prompts on display if WiFi or API key not yet configured
+- Setup mode shows configuration hints (and the BLE device name) when WiFi/API key are missing, then auto-falls to messages after 60s of no BLE activity
 - Market-hours aware — skips API calls when NYSE is closed
 - Auto-refreshes every 5 minutes
 
@@ -76,18 +76,20 @@ Customer PCB was designed in [EasyEDA](https://easyeda.com/). You can order this
    pio device monitor
    ```
 
-5. On first boot the display will prompt you to configure WiFi and the API key via BLE:
+5. On first boot, with no WiFi configured, the display enters setup mode — alternating between the BLE device name (e.g. `LED-Ticker-AB12`) and `Configure WiFi over BLE`. Connect over BLE and configure:
    ```
    uv run tools/led.py wifi My Network Name password123
    uv run tools/led.py apikey your-finnhub-key
    ```
    The last argument is always the password — everything before it is the SSID, so spaces in network names work naturally.
 
+   If you don't intend to use stocks/weather, you can ignore the prompt: after 60 seconds of no BLE activity the display falls back to scrolling messages from `config.h`. Each accepted BLE write resets the 60s timer, so a slow setup session won't get bumped out.
+
    Get a free Finnhub API key at https://finnhub.io/register
 
 ## BLE Control
 
-The device advertises as `LED-Ticker`. Use the included script to control it from any machine with Bluetooth:
+The device advertises as `LED-Ticker-XXXX`, where `XXXX` is the low 2 bytes of the chip MAC (so multiple boards on the same bench are distinguishable). The setup-mode display shows this full name. Use the included script to control it from any machine with Bluetooth:
 
 ```bash
 # Install uv if needed: https://docs.astral.sh/uv/getting-started/installation/
@@ -138,7 +140,7 @@ For building a custom app (e.g. iOS with CoreBluetooth):
 
 Payload formats:
 - **Tickers:** comma-separated symbols — `AAPL,MSFT,GOOGL`
-- **Mode:** `stocks`, `messages`, `weather`, or `all` (round-robin through the other three, one full pass of each per cycle)
+- **Mode:** `stocks`, `messages`, `weather`, or `all` (round-robin through the other three, one full pass of each per cycle). Requesting `stocks` or `weather` without the prerequisite config diverts the display to setup mode until the missing pieces are configured (or until the 60s inactivity timer falls through to `all`).
 - **Messages:** pipe-separated strings — `Take a break!|Drink water!|Stand up!` (max 511 bytes)
 - **Locations:** pipe-separated zip codes or `City, State` strings — `Seattle, WA|98052|Redmond, WA`. The device geocodes each via Open-Meteo on first fetch and caches the result; when a query contains a trailing `, XX`, the `XX` is used as a state/region filter to disambiguate duplicate city names.
 - **Command:** `reload` (force stock refresh) or `reset` (clear NVS, revert to `config.h` defaults)

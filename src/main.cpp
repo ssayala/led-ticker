@@ -16,6 +16,7 @@ enum {
   MODE_MESSAGES,
   MODE_WEATHER,
   MODE_ALL,
+  MODE_SETUP,
 };
 // MODE_ALL cycles internally through the three content modes. allSubMode
 // is restricted to {MODE_STOCKS, MODE_MESSAGES, MODE_WEATHER}.
@@ -309,6 +310,15 @@ void loadLocationsFromNVS() {
     resolved[i].ok = false;
 }
 
+// --- Setup Mode ---
+enum SetupReason { SETUP_BOOT, SETUP_STOCKS, SETUP_WEATHER };
+SetupReason setupReason = SETUP_BOOT;
+volatile unsigned long setupLastActivityMs = 0;
+unsigned int setupFrame = 0;
+#define SETUP_TIMEOUT_MS 60000
+
+char bleDeviceName[24];
+
 // --- BLE ---
 
 #define BLE_DEVICE_NAME "LED-Ticker"
@@ -347,6 +357,7 @@ volatile unsigned long lastBLEFetchMs = 0;
 
 class TickerCallbacks : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* pChar) override {
+    setupLastActivityMs = millis();
     if (millis() - lastBLEFetchMs < BLE_FETCH_COOLDOWN_MS) {
       Serial.println("BLE tickers: cooldown, ignoring");
       return;
@@ -386,12 +397,15 @@ static const char* modeName(int m) {
     return "weather";
   case MODE_ALL:
     return "all";
+  case MODE_SETUP:
+    return "setup";
   }
   return "?";
 }
 
 class ModeCallbacks : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* pChar) override {
+    setupLastActivityMs = millis();
     std::string val = pChar->getValue();
     if (val.length() > 0 && val.length() < sizeof(pendingModeStr)) {
       memcpy(pendingModeStr, val.c_str(), val.length());
@@ -408,6 +422,7 @@ class ModeCallbacks : public NimBLECharacteristicCallbacks {
 
 class MsgsCallbacks : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* pChar) override {
+    setupLastActivityMs = millis();
     std::string val = pChar->getValue();
     if (val.length() > 0 && val.length() < BLE_MSGS_BUF_LEN) {
       memcpy(pendingMsgsStr, val.c_str(), val.length());
@@ -436,6 +451,7 @@ class MsgsCallbacks : public NimBLECharacteristicCallbacks {
 
 class WifiCallbacks : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* pChar) override {
+    setupLastActivityMs = millis();
     std::string val = pChar->getValue();
     if (val.length() > 0 && val.length() < BLE_WIFI_BUF_LEN) {
       memcpy(pendingWifiStr, val.c_str(), val.length());
@@ -452,6 +468,7 @@ class WifiCallbacks : public NimBLECharacteristicCallbacks {
 
 class ApiKeyCallbacks : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* pChar) override {
+    setupLastActivityMs = millis();
     std::string val = pChar->getValue();
     if (val.length() > 0 && val.length() < MAX_APIKEY_LEN) {
       memcpy(pendingApiKey, val.c_str(), val.length());
@@ -467,6 +484,7 @@ class ApiKeyCallbacks : public NimBLECharacteristicCallbacks {
 
 class LocsCallbacks : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* pChar) override {
+    setupLastActivityMs = millis();
     if (millis() - lastBLEFetchMs < BLE_FETCH_COOLDOWN_MS) {
       Serial.println("BLE locations: cooldown, ignoring");
       return;
@@ -498,6 +516,7 @@ class LocsCallbacks : public NimBLECharacteristicCallbacks {
 
 class CmdCallbacks : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* pChar) override {
+    setupLastActivityMs = millis();
     std::string val = pChar->getValue();
     if (val.length() == 0 || val.length() >= sizeof(pendingCmd))
       return;
@@ -517,18 +536,17 @@ class CmdCallbacks : public NimBLECharacteristicCallbacks {
   }
 };
 
-void initBLE() {
-  // Append the low 2 bytes of the chip MAC so multiple units on the
-  // same bench (or in the same household) are distinguishable during
-  // first-time setup. The iOS app scans by service UUID so it doesn't
-  // care about the name, but humans do.
+// Suffix MAC bytes so multiple units on the same bench are distinguishable.
+void buildDeviceName() {
   uint64_t mac = ESP.getEfuseMac();
-  char name[sizeof(BLE_DEVICE_NAME) + 6];
-  snprintf(name, sizeof(name), "%s-%02X%02X",
+  snprintf(bleDeviceName, sizeof(bleDeviceName), "%s-%02X%02X",
     BLE_DEVICE_NAME,
     (uint8_t)((mac >> 8) & 0xFF),
     (uint8_t)(mac & 0xFF));
-  NimBLEDevice::init(name);
+}
+
+void initBLE() {
+  NimBLEDevice::init(bleDeviceName);
   NimBLEDevice::setMTU(512);
   NimBLEServer* pServer = NimBLEDevice::createServer();
   NimBLEService* pService = pServer->createService(BLE_SERVICE_UUID);
@@ -913,6 +931,7 @@ static void advanceAllSubMode() {
 }
 
 void enterAllMode() {
+  currentMode = MODE_ALL;
   allSubMode = MODE_STOCKS;
   currentStock = 0;
   currentMsg = 0;
@@ -921,16 +940,63 @@ void enterAllMode() {
     advanceAllSubMode();
 }
 
+// --- Setup Mode ---
+
+void enterSetup(SetupReason reason) {
+  currentMode = MODE_SETUP;
+  setupReason = reason;
+  setupLastActivityMs = millis();
+  setupFrame = 0;
+}
+
+// Returns the mode to resume into if SETUP prereqs are satisfied, else -1.
+static int setupTargetIfReady() {
+  switch (setupReason) {
+  case SETUP_STOCKS:
+    return (wifiConfigured() && apiKeyConfigured()) ? MODE_STOCKS : -1;
+  case SETUP_WEATHER:
+    return wifiConfigured() ? MODE_WEATHER : -1;
+  case SETUP_BOOT:
+    return wifiConfigured() ? MODE_ALL : -1;
+  }
+  return -1;
+}
+
+void exitSetupIfReady() {
+  if (currentMode != MODE_SETUP)
+    return;
+  int target = setupTargetIfReady();
+  if (target < 0)
+    return;
+  if (target == MODE_ALL)
+    enterAllMode();
+  else
+    currentMode = target;
+  Serial.printf("Setup: prereqs satisfied, exiting to %s\n", modeName(currentMode));
+}
+
+void showNextSetup() {
+  const char* hint;
+  switch (setupReason) {
+  case SETUP_STOCKS:
+    hint = wifiConfigured() ? "Set Finnhub key" : "Stocks needs WiFi";
+    break;
+  case SETUP_WEATHER:
+    hint = "Weather needs WiFi";
+    break;
+  default: // SETUP_BOOT
+    hint = "Configure WiFi over BLE";
+    break;
+  }
+  scrollText((setupFrame++ % 2 == 0) ? hint : bleDeviceName);
+}
+
 void showNext() {
+  if (currentMode == MODE_SETUP) {
+    showNextSetup();
+    return;
+  }
   if (currentMode == MODE_STOCKS) {
-    if (!wifiConfigured()) {
-      scrollText("Configure WiFi over BLE");
-      return;
-    }
-    if (!apiKeyConfigured()) {
-      scrollText("Set Finnhub key over BLE");
-      return;
-    }
     if (stockCount == 0) {
       scrollText("Loading stocks...");
       return;
@@ -939,10 +1005,6 @@ void showNext() {
     return;
   }
   if (currentMode == MODE_WEATHER) {
-    if (!wifiConfigured()) {
-      scrollText("Configure WiFi over BLE");
-      return;
-    }
     if (weatherCount == 0) {
       scrollText("Loading weather...");
       return;
@@ -1008,6 +1070,7 @@ void applyPendingApiKey() {
   saveApiKeyToNVS();
   Serial.println("BLE apikey: saved, fetching stocks");
   triggerFetch(true);
+  exitSetupIfReady();
 }
 
 void applyPendingWifi() {
@@ -1038,6 +1101,7 @@ void applyPendingWifi() {
   Serial.printf("BLE wifi: reconnecting to \"%s\"\n", nvsWifiSsid);
   WiFi.disconnect();
   connectWifi();
+  exitSetupIfReady();
 }
 
 void applyPendingCmd() {
@@ -1069,12 +1133,18 @@ void applyPendingCmd() {
     loadTickersFromNVS();   // re-seeds from config.h since NVS is now empty
     loadLocationsFromNVS(); // same — re-seeds default locations
 
+    // wifiConfigured()/apiKeyConfigured() read these RAM copies, not NVS.
+    nvsWifiSsid[0] = '\0';
+    nvsWifiPass[0] = '\0';
+    nvsApiKey[0] = '\0';
+    WiFi.disconnect();
+
     messageCount = 0;
     currentMsg = 0;
     stockCount = 0;
     weatherCount = 0;
     currentWeather = 0;
-    triggerFetch(true);
+    enterSetup(SETUP_BOOT);
   }
   else {
     Serial.printf("BLE cmd: unknown command \"%s\"\n", pendingCmd);
@@ -1083,14 +1153,21 @@ void applyPendingCmd() {
 
 void applyPendingMode() {
   modeUpdatePending = false;
-  if (strcmp(pendingModeStr, "stocks") == 0)
-    currentMode = MODE_STOCKS;
+  if (strcmp(pendingModeStr, "stocks") == 0) {
+    if (!wifiConfigured() || !apiKeyConfigured())
+      enterSetup(SETUP_STOCKS);
+    else
+      currentMode = MODE_STOCKS;
+  }
   else if (strcmp(pendingModeStr, "messages") == 0)
     currentMode = MODE_MESSAGES;
-  else if (strcmp(pendingModeStr, "weather") == 0)
-    currentMode = MODE_WEATHER;
+  else if (strcmp(pendingModeStr, "weather") == 0) {
+    if (!wifiConfigured())
+      enterSetup(SETUP_WEATHER);
+    else
+      currentMode = MODE_WEATHER;
+  }
   else if (strcmp(pendingModeStr, "all") == 0) {
-    currentMode = MODE_ALL;
     enterAllMode();
   }
   else {
@@ -1238,7 +1315,11 @@ void setup() {
   loadMessagesFromNVS();
   loadTickersFromNVS();
   loadLocationsFromNVS();
-  enterAllMode();
+  buildDeviceName();
+  if (!wifiConfigured())
+    enterSetup(SETUP_BOOT);
+  else
+    enterAllMode();
   showNext();
 
   connectWifi();
@@ -1265,6 +1346,12 @@ void loop() {
     applyPendingLocations();
 
   updateStatusLed();
+
+  if (currentMode == MODE_SETUP &&
+      millis() - setupLastActivityMs > SETUP_TIMEOUT_MS) {
+    Serial.println("Setup: 60s no activity, falling to MODE_ALL");
+    enterAllMode();
+  }
 
   if (display.displayAnimate()) {
     display.displayReset();
