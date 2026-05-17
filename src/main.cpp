@@ -14,19 +14,22 @@
 // Top-level state:
 //   MODE_CONTENT — scroll the categories enabled in `enabledMask`
 //   MODE_SETUP   — show configuration hint until prereqs for `setupTargetMask` are met
+// An *active status* (see Status section) takes precedence over both modes
+// while it is set — the sign overrides the normal ambient display.
 enum {
   MODE_CONTENT,
   MODE_SETUP,
 };
 // Category bits. `enabledMask` is any non-empty subset; the display cycles
-// through whichever bits are set, in the canonical order S → M → W → C.
+// through whichever bits are set, in the canonical order S → W → C.
 // When BIT_CLOCK is the *only* bit set, the display switches to a static
 // (non-scrolling) clock with a 1Hz blinking colon. See tickStaticClock().
+// BIT 0x02 was once BIT_MESSAGES; it is now unused and stripped from any
+// legacy NVS mask on load.
 #define BIT_STOCKS   0x01
-#define BIT_MESSAGES 0x02
 #define BIT_WEATHER  0x04
 #define BIT_CLOCK    0x08
-#define MASK_ALL     (BIT_STOCKS | BIT_MESSAGES | BIT_WEATHER | BIT_CLOCK)
+#define MASK_ALL     (BIT_STOCKS | BIT_WEATHER | BIT_CLOCK)
 extern int currentMode;
 extern uint8_t enabledMask;
 
@@ -107,10 +110,14 @@ bool apiKeyConfigured() { return nvsApiKey[0] != '\0'; }
 
 // --- Fetch Limits ---
 
-#define MAX_STRING_LEN 96 // scroll buffer + message store cell size
-#define MAX_MESSAGES 10
+#define MAX_STRING_LEN 96 // scroll buffer cell size
 #define MAX_STOCKS 10
 #define FETCH_INTERVAL_MS (5 * 60 * 1000)
+
+// Active-status text fits in MAX_STRING_LEN; up to 5 chars renders static,
+// longer scrolls. See tickActiveStatus().
+#define STATUS_MAX_LEN MAX_STRING_LEN
+#define STATUS_STATIC_MAX_CHARS 5
 
 // --- Status LED ---
 
@@ -143,50 +150,39 @@ void scrollText(const char* msg) {
   display.displayScroll(msg, PA_LEFT, PA_SCROLL_LEFT, SCROLL_SPEED);
 }
 
-// --- Messages ---
+// --- Active Status ---
+// The "sign mode" override: when activeStatusText is non-empty and not yet
+// expired, the loop renders it (steady if short, scrolling if long) in
+// place of the normal ambient rotation. statusExpiresAt is a Unix epoch
+// second; 0 means "no status active", UINT32_MAX means "indefinite (until
+// cleared)". State is persisted to NVS so a power blip mid-meeting still
+// ends the sign at the right time.
+char activeStatusText[STATUS_MAX_LEN] = {0};
+uint32_t statusExpiresAt = 0;
 
-char messageStore[MAX_MESSAGES][MAX_STRING_LEN + 1];
-int messageCount = 0;
-int currentMsg = 0;
-
-int getTotalMessages() {
-  return messageCount > 0 ? messageCount : fallbackCount;
+void saveStatusToNVS() {
+  prefs.begin("status", false);
+  prefs.putString("text", activeStatusText);
+  prefs.putUInt("exp", statusExpiresAt);
+  prefs.end();
 }
 
-const char* getMessage(int idx) {
-  if (messageCount > 0)
-    return messageStore[idx % messageCount];
-  return fallbackMessages[idx % fallbackCount];
-}
-
-void saveMessagesToNVS() {
-  prefs.begin("msgs", false);
-  prefs.putInt("count", messageCount);
-  for (int i = 0; i < messageCount; i++) {
-    char key[8];
-    snprintf(key, sizeof(key), "m%d", i);
-    prefs.putString(key, messageStore[i]);
+void loadStatusFromNVS() {
+  prefs.begin("status", true);
+  if (prefs.isKey("text")) {
+    prefs.getString("text", activeStatusText, STATUS_MAX_LEN);
+    statusExpiresAt = prefs.getUInt("exp", 0);
+    if (activeStatusText[0])
+      Serial.printf("Loaded status from NVS: \"%s\" exp=%u\n",
+                    activeStatusText, statusExpiresAt);
   }
   prefs.end();
 }
 
-void loadMessagesFromNVS() {
-  prefs.begin("msgs", true);
-  int count = prefs.getInt("count", 0);
-  if (count > 0 && count <= MAX_MESSAGES) {
-    for (int i = 0; i < count; i++) {
-      char key[8];
-      snprintf(key, sizeof(key), "m%d", i);
-      prefs.getString(key, messageStore[i], MAX_STRING_LEN);
-    }
-    prefs.end();
-    messageCount = count;
-    Serial.printf("Loaded %d messages from NVS\n", count);
-  }
-  else {
-    prefs.end();
-    Serial.println("No messages in NVS, using fallbacks");
-  }
+void clearStatus() {
+  activeStatusText[0] = '\0';
+  statusExpiresAt = 0;
+  saveStatusToNVS();
 }
 
 // --- Stocks ---
@@ -356,33 +352,38 @@ char bleDeviceName[24];
 #define BLE_SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define BLE_TICKER_CHAR_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 #define BLE_MODE_CHAR_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a9"
-#define BLE_MSGS_CHAR_UUID "beb5483e-36e1-4688-b7f5-ea07361b26aa"
+// 26aa was once "Messages". The characteristic is gone; the UUID is left
+// here as a tombstone comment so future additions don't reuse it and
+// confuse old clients that probe for it.
 #define BLE_CMD_CHAR_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ab"
 #define BLE_WIFI_CHAR_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ac"
 #define BLE_APIKEY_CHAR_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ad"
 #define BLE_LOCS_CHAR_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ae"
+#define BLE_STATUS_CHAR_UUID "beb5483e-36e1-4688-b7f5-ea07361b26af"
 #define BLE_TICKER_BUF_LEN (MAX_STOCKS * (MAX_TICKER_LEN + 1))
-#define BLE_MSGS_BUF_LEN 512
 #define BLE_WIFI_BUF_LEN (WIFI_SSID_MAX + WIFI_PASS_MAX + 1)
 #define BLE_LOCS_BUF_LEN (MAX_LOCATIONS * (MAX_LOCATION_LEN + 1))
+// "text|<uint32 seconds>" — text up to STATUS_MAX_LEN, plus '|', up to 10
+// digits, plus NUL.
+#define BLE_STATUS_BUF_LEN (STATUS_MAX_LEN + 12)
 
 volatile bool tickerUpdatePending = false;
 volatile bool modeUpdatePending = false;
-volatile bool msgsUpdatePending = false;
 volatile bool cmdPending = false;
 volatile bool wifiUpdatePending = false;
 volatile bool apiKeyUpdatePending = false;
 volatile bool locsUpdatePending = false;
+volatile bool statusUpdatePending = false;
 
 char pendingTickerStr[BLE_TICKER_BUF_LEN];
 // Holds the comma-joined mode payload; size = longest valid mode string,
-// "stocks,messages,weather,clock" (29 chars + NUL), plus a little slack.
+// "stocks,weather,clock" (20 chars + NUL), plus slack.
 char pendingModeStr[64];
-char pendingMsgsStr[BLE_MSGS_BUF_LEN];
 char pendingCmd[16];
 char pendingWifiStr[BLE_WIFI_BUF_LEN];
 char pendingApiKey[MAX_APIKEY_LEN];
 char pendingLocsStr[BLE_LOCS_BUF_LEN];
+char pendingStatusStr[BLE_STATUS_BUF_LEN];
 
 // Minimum ms between writes that trigger network activity
 #define BLE_FETCH_COOLDOWN_MS 10000
@@ -423,8 +424,8 @@ class TickerCallbacks : public NimBLECharacteristicCallbacks {
 // Canonical text representation of the current mode. Returns one of:
 //   "setup"                    — in MODE_SETUP
 //   "all"                      — every category enabled
-//   "stocks", "messages",      — single category
-//   "weather"
+//   "stocks", "weather",       — single category
+//   "clock"
 //   "stocks,weather", ...      — comma-joined subset
 static int formatModeName(char* buf, size_t bufLen) {
   if (currentMode == MODE_SETUP)
@@ -435,10 +436,6 @@ static int formatModeName(char* buf, size_t bufLen) {
   const char* sep = "";
   if (enabledMask & BIT_STOCKS) {
     len += snprintf(buf + len, bufLen - len, "%sstocks", sep);
-    sep = ",";
-  }
-  if (enabledMask & BIT_MESSAGES) {
-    len += snprintf(buf + len, bufLen - len, "%smessages", sep);
     sep = ",";
   }
   if (enabledMask & BIT_WEATHER) {
@@ -470,31 +467,38 @@ class ModeCallbacks : public NimBLECharacteristicCallbacks {
   }
 };
 
-class MsgsCallbacks : public NimBLECharacteristicCallbacks {
+// Status payload formats:
+//   Write "text|N"        — set status for N seconds (N=0 = indefinite)
+//   Write ""              — clear status
+//   Read returns "text|M" — M seconds remaining (0 if indefinite),
+//                           or empty string if no active status
+class StatusCallbacks : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* pChar) override {
     setupLastActivityMs = millis();
     std::string val = pChar->getValue();
-    if (val.length() > 0 && val.length() < BLE_MSGS_BUF_LEN) {
-      memcpy(pendingMsgsStr, val.c_str(), val.length());
-      pendingMsgsStr[val.length()] = '\0';
-      msgsUpdatePending = true;
-    }
+    if (val.length() >= BLE_STATUS_BUF_LEN)
+      return;
+    memcpy(pendingStatusStr, val.c_str(), val.length());
+    pendingStatusStr[val.length()] = '\0';
+    statusUpdatePending = true;
   }
 
   void onRead(NimBLECharacteristic* pChar) override {
-    char buf[BLE_MSGS_BUF_LEN];
-    int len = 0;
-    int count = messageCount > 0 ? messageCount : fallbackCount;
-    for (int i = 0; i < count && len < (int)sizeof(buf) - 1; i++) {
-      const char* msg = messageCount > 0 ? messageStore[i] : fallbackMessages[i];
-      if (i > 0 && len < (int)sizeof(buf) - 1)
-        buf[len++] = '|';
-      int remaining = sizeof(buf) - 1 - len;
-      int msgLen = strnlen(msg, remaining);
-      memcpy(buf + len, msg, msgLen);
-      len += msgLen;
+    char buf[BLE_STATUS_BUF_LEN];
+    if (activeStatusText[0] == '\0') {
+      pChar->setValue((uint8_t*)buf, 0);
+      return;
     }
-    buf[len] = '\0';
+    uint32_t remaining = 0; // 0 means "indefinite" on the read side
+    if (statusExpiresAt != 0 && statusExpiresAt != UINT32_MAX) {
+      uint32_t now = (uint32_t)time(NULL);
+      remaining = (now < statusExpiresAt) ? (statusExpiresAt - now) : 1;
+    }
+    int len = snprintf(buf, sizeof(buf), "%s|%u", activeStatusText, remaining);
+    if (len < 0)
+      len = 0;
+    if (len >= (int)sizeof(buf))
+      len = sizeof(buf) - 1;
     pChar->setValue((uint8_t*)buf, len);
   }
 };
@@ -605,8 +609,6 @@ void initBLE() {
     ->setCallbacks(new TickerCallbacks());
   pService->createCharacteristic(BLE_MODE_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE)
     ->setCallbacks(new ModeCallbacks());
-  pService->createCharacteristic(BLE_MSGS_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE)
-    ->setCallbacks(new MsgsCallbacks());
   pService->createCharacteristic(BLE_CMD_CHAR_UUID, NIMBLE_PROPERTY::WRITE)
     ->setCallbacks(new CmdCallbacks());
   pService->createCharacteristic(BLE_WIFI_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE)
@@ -615,6 +617,8 @@ void initBLE() {
     ->setCallbacks(new ApiKeyCallbacks());
   pService->createCharacteristic(BLE_LOCS_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE)
     ->setCallbacks(new LocsCallbacks());
+  pService->createCharacteristic(BLE_STATUS_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE)
+    ->setCallbacks(new StatusCallbacks());
 
   pService->start();
   NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
@@ -927,12 +931,6 @@ void enterContent();
 void enterSetup(uint8_t targetMask);
 
 
-void showNextMsg() {
-  int total = getTotalMessages();
-  scrollText(getMessage(currentMsg));
-  currentMsg = (currentMsg + 1) % total;
-}
-
 void showNextStock() {
   StockQuote q;
   xSemaphoreTake(dataMutex, portMAX_DELAY);
@@ -1011,8 +1009,8 @@ void tickStaticClock() {
 }
 
 // Which category bit is currently scrolling within MODE_CONTENT. Always one
-// of BIT_STOCKS / BIT_MESSAGES / BIT_WEATHER. Advances when the active
-// category wraps so each enabled category gets a full pass per cycle.
+// of BIT_STOCKS / BIT_WEATHER / BIT_CLOCK. Advances when the active category
+// wraps so each enabled category gets a full pass per cycle.
 uint8_t currentBit = BIT_STOCKS;
 
 static bool stocksAvailable() {
@@ -1032,14 +1030,12 @@ static bool bitHasData(uint8_t b) {
     return weatherAvailable();
   if (b == BIT_CLOCK)
     return timeReady; // NTP must have synced at least once
-  return true; // messages always has fallback text
+  return false;
 }
 
-// Canonical rotation order: STOCKS -> MESSAGES -> WEATHER -> CLOCK -> STOCKS.
+// Canonical rotation order: STOCKS -> WEATHER -> CLOCK -> STOCKS.
 static uint8_t nextBit(uint8_t b) {
   if (b == BIT_STOCKS)
-    return BIT_MESSAGES;
-  if (b == BIT_MESSAGES)
     return BIT_WEATHER;
   if (b == BIT_WEATHER)
     return BIT_CLOCK;
@@ -1050,13 +1046,11 @@ static uint8_t nextBit(uint8_t b) {
 // bit has data, leave currentBit unchanged so showNext can show a loading hint.
 static void advanceCategory() {
   uint8_t start = currentBit;
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 3; i++) {
     currentBit = nextBit(currentBit);
     if ((enabledMask & currentBit) && bitHasData(currentBit)) {
       if (currentBit == BIT_STOCKS)
         currentStock = 0;
-      else if (currentBit == BIT_MESSAGES)
-        currentMsg = 0;
       else if (currentBit == BIT_WEATHER)
         currentWeather = 0;
       // BIT_CLOCK has no per-item counter — one item per pass.
@@ -1067,20 +1061,19 @@ static void advanceCategory() {
 }
 
 static uint8_t firstActiveBit() {
-  const uint8_t order[] = { BIT_STOCKS, BIT_MESSAGES, BIT_WEATHER, BIT_CLOCK };
+  const uint8_t order[] = { BIT_STOCKS, BIT_WEATHER, BIT_CLOCK };
   for (uint8_t b : order)
     if ((enabledMask & b) && bitHasData(b))
       return b;
   for (uint8_t b : order)
     if (enabledMask & b)
       return b;
-  return BIT_MESSAGES;
+  return BIT_CLOCK;
 }
 
 void enterContent() {
   currentMode = MODE_CONTENT;
   currentStock = 0;
-  currentMsg = 0;
   currentWeather = 0;
   currentBit = firstActiveBit();
 }
@@ -1153,8 +1146,6 @@ void showNext() {
         scrollText("Loading weather...");
       else if (currentBit == BIT_CLOCK)
         scrollText("Loading time...");
-      else
-        scrollText("...");
       return;
     }
   }
@@ -1173,11 +1164,76 @@ void showNext() {
     showNextClock();
     advanceCategory(); // one item per pass — always rotate after showing
   }
-  else {
-    showNextMsg();
-    if (currentMsg == 0)
-      advanceCategory();
+}
+
+// --- Active Status Rendering ---
+// Short text (≤ STATUS_STATIC_MAX_CHARS) renders steady — the text being lit
+// is the signal; a hard blink reads as "alarm" rather than "state." Longer
+// text scrolls on a loop. `statusShown` caches what's currently on the
+// matrix so tickActiveStatus skips redraws when nothing changed; writers
+// that wipe the display out-of-band call invalidateStatusRender() so the
+// next tick repaints rather than no-oping on a stale equality.
+static char statusShown[STATUS_MAX_LEN] = "";
+static bool statusShownIsScroll = false;
+
+static void invalidateStatusRender() {
+  statusShown[0] = '\0';
+}
+
+// Combined gate + expiry check. Returns true if status should render right
+// now; if a timed status has passed its expiry, clears and resumes ambient
+// in-place (so the caller just falls through to the normal render path).
+// One time(NULL) per call instead of the two we'd pay if expiry and the
+// render gate were separate functions.
+bool checkStatusForRender() {
+  if (activeStatusText[0] == '\0')
+    return false;
+  if (statusExpiresAt == 0 || statusExpiresAt == UINT32_MAX)
+    return true;
+  // Timed status: can't trust expiry until NTP has set the clock.
+  if (!timeReady)
+    return false;
+  if ((uint32_t)time(NULL) < statusExpiresAt)
+    return true;
+
+  Serial.printf("Status: \"%s\" expired, clearing\n", activeStatusText);
+  clearStatus();
+  invalidateStatusRender();
+  display.displayClear();
+  enterContent();
+  return false;
+}
+
+// Clear an active sign and reset render state so the display falls back to
+// the ambient rotation cleanly. Used when an explicit clear write arrives
+// or when applyPendingStatus receives an empty-text payload.
+static void clearActiveStatusAndResume() {
+  clearStatus();
+  invalidateStatusRender();
+  display.displayClear();
+  enterContent();
+}
+
+void tickActiveStatus() {
+  if (strcmp(statusShown, activeStatusText) != 0) {
+    strncpy(statusShown, activeStatusText, sizeof(statusShown) - 1);
+    statusShown[sizeof(statusShown) - 1] = '\0';
+    statusShownIsScroll = strlen(activeStatusText) > STATUS_STATIC_MAX_CHARS;
+    display.displayClear();
+    if (statusShownIsScroll) {
+      strncpy(scrollBuf, activeStatusText, sizeof(scrollBuf) - 1);
+      scrollBuf[sizeof(scrollBuf) - 1] = '\0';
+      display.displayScroll(scrollBuf, PA_LEFT, PA_SCROLL_LEFT, SCROLL_SPEED);
+    }
+    else {
+      display.displayText(activeStatusText, PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
+      display.displayAnimate();
+    }
   }
+
+  // Only the scroll path needs the per-tick animation pump.
+  if (statusShownIsScroll && display.displayAnimate())
+    display.displayReset(); // loop the same scroll
 }
 
 // --- WiFi ---
@@ -1199,7 +1255,7 @@ void connectWifi() {
     Serial.printf("\nConnected, IP: %u.%u.%u.%u\n", ip[0], ip[1], ip[2], ip[3]);
   }
   else {
-    Serial.println("\nWiFi failed, using fallback messages");
+    Serial.println("\nWiFi failed");
   }
 }
 
@@ -1270,6 +1326,9 @@ void applyPendingCmd() {
     prefs.begin("tickers", false);
     prefs.clear();
     prefs.end();
+    // "msgs" is a tombstone namespace from when this firmware had a
+    // messages/presets feature. Wipe any leftover data on reset so a
+    // downgrade-then-upgrade doesn't surface stale entries.
     prefs.begin("msgs", false);
     prefs.clear();
     prefs.end();
@@ -1277,6 +1336,9 @@ void applyPendingCmd() {
     prefs.clear();
     prefs.end();
     prefs.begin("display", false);
+    prefs.clear();
+    prefs.end();
+    prefs.begin("status", false);
     prefs.clear();
     prefs.end();
 
@@ -1290,8 +1352,9 @@ void applyPendingCmd() {
     nvsApiKey[0] = '\0';
     WiFi.disconnect();
 
-    messageCount = 0;
-    currentMsg = 0;
+    activeStatusText[0] = '\0';
+    statusExpiresAt = 0;
+    invalidateStatusRender();
     stockCount = 0;
     weatherCount = 0;
     currentWeather = 0;
@@ -1325,8 +1388,6 @@ static uint8_t parseModePayload(const char* in) {
 
     if (strcmp(tok, "stocks") == 0)
       mask |= BIT_STOCKS;
-    else if (strcmp(tok, "messages") == 0)
-      mask |= BIT_MESSAGES;
     else if (strcmp(tok, "weather") == 0)
       mask |= BIT_WEATHER;
     else if (strcmp(tok, "clock") == 0)
@@ -1356,43 +1417,74 @@ void applyPendingMode() {
   Serial.printf("BLE: mode -> %s\n", buf);
 }
 
-void applyPendingMessages() {
-  char buf[BLE_MSGS_BUF_LEN];
-  strncpy(buf, pendingMsgsStr, sizeof(buf) - 1);
+// Status payload: "text|N" (N seconds; N=0 = indefinite) or empty = clear.
+void applyPendingStatus() {
+  char buf[BLE_STATUS_BUF_LEN];
+  strncpy(buf, pendingStatusStr, sizeof(buf) - 1);
   buf[sizeof(buf) - 1] = '\0';
-  msgsUpdatePending = false;
+  statusUpdatePending = false;
 
-  char tmp[MAX_MESSAGES][MAX_STRING_LEN + 1];
-  int count = 0;
-
-  char* token = strtok(buf, "|");
-  while (token && count < MAX_MESSAGES) {
-    while (*token == ' ')
-      token++;
-    int len = strlen(token);
-    while (len > 0 && token[len - 1] == ' ')
-      len--;
-    token[len] = '\0';
-
-    if (len > 0) {
-      strncpy(tmp[count], token, MAX_STRING_LEN);
-      tmp[count][MAX_STRING_LEN] = '\0';
-      count++;
-    }
-    token = strtok(nullptr, "|");
-  }
-
-  if (count == 0) {
-    Serial.println("BLE: no valid messages, ignoring");
+  if (buf[0] == '\0') {
+    if (activeStatusText[0])
+      Serial.println("BLE status: cleared");
+    clearActiveStatusAndResume();
     return;
   }
 
-  for (int i = 0; i < count; i++)
-    strncpy(messageStore[i], tmp[i], MAX_STRING_LEN + 1);
-  messageCount = count;
-  currentMsg = 0;
-  saveMessagesToNVS();
-  Serial.printf("BLE: applied %d messages\n", count);
+  // strrchr (last '|') rather than strchr (first) because status text may
+  // contain pipes in theory; the seconds tail never does.
+  char* sep = strrchr(buf, '|');
+  if (!sep) {
+    Serial.println("BLE status: missing '|' separator, ignoring");
+    return;
+  }
+
+  *sep = '\0';
+  char* text = buf;
+  const char* tail = sep + 1;
+
+  while (*text == ' ')
+    text++;
+  int textLen = strlen(text);
+  while (textLen > 0 && text[textLen - 1] == ' ')
+    text[--textLen] = '\0';
+  if (textLen == 0) {
+    if (activeStatusText[0])
+      Serial.println("BLE status: empty text, clearing");
+    clearActiveStatusAndResume();
+    return;
+  }
+
+  char* tailEnd = nullptr;
+  unsigned long secs = strtoul(tail, &tailEnd, 10);
+  if (tailEnd == tail) {
+    Serial.println("BLE status: bad seconds value, ignoring");
+    return;
+  }
+
+  strncpy(activeStatusText, text, STATUS_MAX_LEN - 1);
+  activeStatusText[STATUS_MAX_LEN - 1] = '\0';
+
+  if (secs == 0) {
+    statusExpiresAt = UINT32_MAX;
+    Serial.printf("BLE status: \"%s\" indefinite\n", activeStatusText);
+  }
+  else if (!timeReady) {
+    // No clock yet — store as indefinite so we don't accidentally expire on
+    // an uninitialized clock. User can re-send once NTP is up if they want
+    // a timed sign during pre-NTP windows.
+    statusExpiresAt = UINT32_MAX;
+    Serial.printf("BLE status: \"%s\" (no NTP — treating as indefinite)\n",
+                  activeStatusText);
+  }
+  else {
+    statusExpiresAt = (uint32_t)time(NULL) + secs;
+    Serial.printf("BLE status: \"%s\" for %lus (exp=%u)\n",
+                  activeStatusText, secs, statusExpiresAt);
+  }
+  saveStatusToNVS();
+  invalidateStatusRender();
+  display.displayClear();
 }
 
 void applyPendingTickers() {
@@ -1491,10 +1583,10 @@ void setup() {
   initDisplay();
   loadWifiFromNVS();
   loadApiKeyFromNVS();
-  loadMessagesFromNVS();
   loadTickersFromNVS();
   loadLocationsFromNVS();
   loadDisplayMaskFromNVS();
+  loadStatusFromNVS();
   buildDeviceName();
   if (!maskPrereqsReady(enabledMask))
     enterSetup(enabledMask);
@@ -1518,12 +1610,12 @@ void loop() {
     applyPendingCmd();
   if (modeUpdatePending)
     applyPendingMode();
-  if (msgsUpdatePending)
-    applyPendingMessages();
   if (tickerUpdatePending)
     applyPendingTickers();
   if (locsUpdatePending)
     applyPendingLocations();
+  if (statusUpdatePending)
+    applyPendingStatus();
 
   updateStatusLed();
 
@@ -1533,11 +1625,14 @@ void loop() {
     enterContent();
   }
 
-  // Static-clock fast path: when clock is the only enabled category and NTP
-  // is synced, bypass the scroll pump and drive the display directly.
-  // While timeReady is still false we fall through to the scroll path so
-  // showNext() can render the "Loading time..." hint.
-  if (currentMode == MODE_CONTENT && enabledMask == BIT_CLOCK && timeReady) {
+  // Render precedence:
+  //   1. Active status (sign mode) — overrides everything until expiry/clear
+  //   2. Single-clock static fast path
+  //   3. Normal scroll pump (content rotation or setup hints)
+  if (checkStatusForRender()) {
+    tickActiveStatus();
+  }
+  else if (currentMode == MODE_CONTENT && enabledMask == BIT_CLOCK && timeReady) {
     tickStaticClock();
   }
   else if (display.displayAnimate()) {
