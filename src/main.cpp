@@ -11,21 +11,14 @@
 #include "config.h"
 
 // --- Display Mode ---
-// Top-level state:
-//   MODE_CONTENT — scroll the categories enabled in `enabledMask`
-//   MODE_SETUP   — show configuration hint until prereqs for `setupTargetMask` are met
-// An *active status* (see Status section) takes precedence over both modes
-// while it is set — the sign overrides the normal ambient display.
+// An active status sign overrides both modes until expiry/clear.
+// 0x02 was once BIT_MESSAGES — tombstoned; legacy NVS masks are stripped
+// via `& MASK_ALL` on load. When BIT_CLOCK is the only enabled bit, the
+// display switches to a steady non-scrolling clock — see tickStaticClock().
 enum {
   MODE_CONTENT,
   MODE_SETUP,
 };
-// Category bits. `enabledMask` is any non-empty subset; the display cycles
-// through whichever bits are set, in the canonical order S → W → C.
-// When BIT_CLOCK is the *only* bit set, the display switches to a steady
-// (non-scrolling) clock — no blink. See tickStaticClock().
-// BIT 0x02 was once BIT_MESSAGES; it is now unused and stripped from any
-// legacy NVS mask on load.
 #define BIT_STOCKS   0x01
 #define BIT_WEATHER  0x04
 #define BIT_CLOCK    0x08
@@ -187,8 +180,8 @@ int currentStock = 0;
 static SemaphoreHandle_t dataMutex = nullptr;
 static TaskHandle_t fetchTaskHandle = nullptr;
 // MD_Parola stores the pointer passed to displayScroll, not a copy.
-// Shared across stock/weather/message scrolls — only one is ever active,
-// and we overwrite only when starting the next scroll.
+// Shared across all scrolling content (stocks/weather/clock/status/setup) —
+// only one is ever active, and we overwrite only when starting the next scroll.
 static char scrollBuf[MAX_STRING_LEN + 1];
 
 void saveTickersToNVS() {
@@ -294,8 +287,6 @@ void loadLocationsFromNVS() {
 }
 
 // --- Display Mask (persisted) ---
-// Bitmask of currently-enabled categories. Restored from NVS on boot;
-// defaults to MASK_ALL on first boot or after `cmd=reset`.
 uint8_t enabledMask = MASK_ALL;
 
 void saveDisplayMaskToNVS() {
@@ -401,12 +392,6 @@ class TickerCallbacks : public NimBLECharacteristicCallbacks {
   }
 };
 
-// Canonical text representation of the current mode. Returns one of:
-//   "setup"                    — in MODE_SETUP
-//   "all"                      — every category enabled
-//   "stocks", "weather",       — single category
-//   "clock"
-//   "stocks,weather", ...      — comma-joined subset
 static int formatModeName(char* buf, size_t bufLen) {
   if (currentMode == MODE_SETUP)
     return snprintf(buf, bufLen, "setup");
@@ -1020,7 +1005,6 @@ static bool bitHasData(uint8_t b) {
   return false;
 }
 
-// Canonical rotation order: STOCKS -> WEATHER -> CLOCK -> STOCKS.
 static uint8_t nextBit(uint8_t b) {
   if (b == BIT_STOCKS)
     return BIT_WEATHER;
@@ -1065,7 +1049,6 @@ void enterContent() {
   currentBit = firstActiveBit();
 }
 
-// True if every requested bit has its prerequisites satisfied.
 static bool maskPrereqsReady(uint8_t mask) {
   if ((mask & BIT_STOCKS) && (!wifiConfigured() || !apiKeyConfigured()))
     return false;
@@ -1191,9 +1174,6 @@ bool checkStatusForRender() {
   return false;
 }
 
-// Clear an active sign and reset render state so the display falls back to
-// the ambient rotation cleanly. Used when an explicit clear write arrives
-// or when applyPendingStatus receives an empty-text payload.
 static void clearActiveStatusAndResume() {
   clearStatus();
   invalidateStatusRender();
@@ -1313,10 +1293,8 @@ void applyPendingCmd() {
     prefs.begin("tickers", false);
     prefs.clear();
     prefs.end();
-    // "msgs" (old messages/presets feature) and "status" (briefly used
-    // for cross-reboot persistence of the active sign) are tombstone
-    // namespaces — wipe any leftover data on reset so a downgrade-then-
-    // upgrade doesn't surface stale entries.
+    // "msgs" and "status" are tombstone namespaces — wipe any leftover data
+    // so a downgrade-then-upgrade doesn't surface stale entries.
     prefs.begin("msgs", false);
     prefs.clear();
     prefs.end();
@@ -1332,7 +1310,7 @@ void applyPendingCmd() {
 
     loadTickersFromNVS();   // re-seeds from config.h since NVS is now empty
     loadLocationsFromNVS(); // same — re-seeds default locations
-    enabledMask = MASK_ALL; // reset display mask to default
+    enabledMask = MASK_ALL;
 
     // wifiConfigured()/apiKeyConfigured() read these RAM copies, not NVS.
     nvsWifiSsid[0] = '\0';
@@ -1353,9 +1331,7 @@ void applyPendingCmd() {
   }
 }
 
-// Parse a Mode characteristic payload into a category bitmask.
-// Accepts the special token "all" (== MASK_ALL) or a comma-separated list
-// of {stocks, messages, weather}. Whitespace around tokens is tolerated.
+// Accepts "all" or a comma-separated subset of {stocks, weather, clock}.
 // Returns 0 on unknown token, empty input, or empty mask after parse.
 static uint8_t parseModePayload(const char* in) {
   if (strcmp(in, "all") == 0)
@@ -1405,7 +1381,6 @@ void applyPendingMode() {
   Serial.printf("BLE: mode -> %s\n", buf);
 }
 
-// Status payload: "text|N" (N seconds; N=0 = indefinite) or empty = clear.
 void applyPendingStatus() {
   char buf[BLE_STATUS_BUF_LEN];
   strncpy(buf, pendingStatusStr, sizeof(buf) - 1);
@@ -1620,10 +1595,6 @@ void loop() {
     }
   }
 
-  // Render precedence:
-  //   1. Active status (sign mode) — overrides everything until expiry/clear
-  //   2. Single-clock static fast path
-  //   3. Normal scroll pump (content rotation or setup hints)
   if (checkStatusForRender()) {
     tickActiveStatus();
   }
