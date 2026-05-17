@@ -155,34 +155,14 @@ void scrollText(const char* msg) {
 // expired, the loop renders it (steady if short, scrolling if long) in
 // place of the normal ambient rotation. statusExpiresAt is a Unix epoch
 // second; 0 means "no status active", UINT32_MAX means "indefinite (until
-// cleared)". State is persisted to NVS so a power blip mid-meeting still
-// ends the sign at the right time.
+// cleared)". State is in-RAM only — a power cycle clears any active sign
+// and the device resumes its ambient mode.
 char activeStatusText[STATUS_MAX_LEN] = {0};
 uint32_t statusExpiresAt = 0;
-
-void saveStatusToNVS() {
-  prefs.begin("status", false);
-  prefs.putString("text", activeStatusText);
-  prefs.putUInt("exp", statusExpiresAt);
-  prefs.end();
-}
-
-void loadStatusFromNVS() {
-  prefs.begin("status", true);
-  if (prefs.isKey("text")) {
-    prefs.getString("text", activeStatusText, STATUS_MAX_LEN);
-    statusExpiresAt = prefs.getUInt("exp", 0);
-    if (activeStatusText[0])
-      Serial.printf("Loaded status from NVS: \"%s\" exp=%u\n",
-                    activeStatusText, statusExpiresAt);
-  }
-  prefs.end();
-}
 
 void clearStatus() {
   activeStatusText[0] = '\0';
   statusExpiresAt = 0;
-  saveStatusToNVS();
 }
 
 // --- Stocks ---
@@ -599,10 +579,22 @@ void buildDeviceName() {
     (uint8_t)(mac & 0xFF));
 }
 
+// NimBLE-Arduino stops advertising on connect and does NOT auto-resume on
+// disconnect. Without this, a single connection (even a brief or accidental
+// one) makes the device invisible to subsequent scans until reboot — the
+// classic "iPhone can't see my LED-Ticker anymore" symptom.
+class ServerCallbacks : public NimBLEServerCallbacks {
+  void onDisconnect(NimBLEServer*) override {
+    Serial.println("BLE: client disconnected, resuming advertising");
+    NimBLEDevice::startAdvertising();
+  }
+};
+
 void initBLE() {
   NimBLEDevice::init(bleDeviceName);
   NimBLEDevice::setMTU(512);
   NimBLEServer* pServer = NimBLEDevice::createServer();
+  pServer->setCallbacks(new ServerCallbacks());
   NimBLEService* pService = pServer->createService(BLE_SERVICE_UUID);
 
   pService->createCharacteristic(BLE_TICKER_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE)
@@ -1326,19 +1318,20 @@ void applyPendingCmd() {
     prefs.begin("tickers", false);
     prefs.clear();
     prefs.end();
-    // "msgs" is a tombstone namespace from when this firmware had a
-    // messages/presets feature. Wipe any leftover data on reset so a
-    // downgrade-then-upgrade doesn't surface stale entries.
+    // "msgs" (old messages/presets feature) and "status" (briefly used
+    // for cross-reboot persistence of the active sign) are tombstone
+    // namespaces — wipe any leftover data on reset so a downgrade-then-
+    // upgrade doesn't surface stale entries.
     prefs.begin("msgs", false);
+    prefs.clear();
+    prefs.end();
+    prefs.begin("status", false);
     prefs.clear();
     prefs.end();
     prefs.begin("locs", false);
     prefs.clear();
     prefs.end();
     prefs.begin("display", false);
-    prefs.clear();
-    prefs.end();
-    prefs.begin("status", false);
     prefs.clear();
     prefs.end();
 
@@ -1482,7 +1475,6 @@ void applyPendingStatus() {
     Serial.printf("BLE status: \"%s\" for %lus (exp=%u)\n",
                   activeStatusText, secs, statusExpiresAt);
   }
-  saveStatusToNVS();
   invalidateStatusRender();
   display.displayClear();
 }
@@ -1586,7 +1578,6 @@ void setup() {
   loadTickersFromNVS();
   loadLocationsFromNVS();
   loadDisplayMaskFromNVS();
-  loadStatusFromNVS();
   buildDeviceName();
   if (!maskPrereqsReady(enabledMask))
     enterSetup(enabledMask);
@@ -1621,8 +1612,17 @@ void loop() {
 
   if (currentMode == MODE_SETUP &&
       millis() - setupLastActivityMs > SETUP_TIMEOUT_MS) {
-    Serial.println("Setup: 60s no activity, falling to content (mask unchanged)");
-    enterContent();
+    if (wifiConfigured()) {
+      Serial.println("Setup: 60s no activity, falling to content (mask unchanged)");
+      enterContent();
+    }
+    else {
+      // No WiFi means every category in the mask is dead — falling through
+      // would just rotate "Loading X..." hints forever. The setup hint
+      // ("Configure WiFi over BLE") is strictly better. Push the next
+      // timeout check out so we don't re-evaluate this branch every loop.
+      setupLastActivityMs = millis();
+    }
   }
 
   // Render precedence:
