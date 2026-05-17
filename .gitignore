@@ -7,5 +7,6 @@ ios/LEDTicker.xcodeproj/
 ios/build/
 ios/DerivedData/
 ios/Signing.local.xcconfig
+ios/store/
 .DS_Store
 docs/
