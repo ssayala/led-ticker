@@ -84,7 +84,7 @@ Customer PCB was designed in [EasyEDA](https://easyeda.com/). You can order this
    ```
    The last argument is always the password — everything before it is the SSID, so spaces in network names work naturally.
 
-   If you don't intend to use stocks/weather, you can ignore the prompt: after 60 seconds of no BLE activity the display falls into the chosen ambient mode (unmet-prereq categories will show a "Loading..." hint instead). Each accepted BLE write resets the 60s timer, so a slow setup session won't get bumped out. You can also set a status sign over BLE at any point — it takes over the display regardless of setup state.
+   If WiFi is configured but you skip the Finnhub key, after 60 seconds of no BLE activity the display falls into the chosen ambient mode — categories whose prereqs are still missing show a "Loading..." hint, the rest run normally. With *no* WiFi configured the device stays in setup mode indefinitely (nothing in the ambient rotation works without it, so "Configure WiFi over BLE" is the more useful screen). Each accepted BLE write resets the 60s timer. You can also set a status sign over BLE at any point — it takes over the display regardless of setup state, and works without WiFi (timed signs require NTP and silently become indefinite when written before the clock syncs).
 
    Get a free Finnhub API key at https://finnhub.io/register
 

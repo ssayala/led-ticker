@@ -1621,8 +1621,17 @@ void loop() {
 
   if (currentMode == MODE_SETUP &&
       millis() - setupLastActivityMs > SETUP_TIMEOUT_MS) {
-    Serial.println("Setup: 60s no activity, falling to content (mask unchanged)");
-    enterContent();
+    if (wifiConfigured()) {
+      Serial.println("Setup: 60s no activity, falling to content (mask unchanged)");
+      enterContent();
+    }
+    else {
+      // No WiFi means every category in the mask is dead — falling through
+      // would just rotate "Loading X..." hints forever. The setup hint
+      // ("Configure WiFi over BLE") is strictly better. Push the next
+      // timeout check out so we don't re-evaluate this branch every loop.
+      setupLastActivityMs = millis();
+    }
   }
 
   // Render precedence:
