@@ -6,7 +6,7 @@ Desk sign + ambient ticker built on an ESP32-S3 and a DIYables 4-in-1 MAX7219 LE
 
 - **Sign mode** — one-tap status text, optional auto-clear timer, overrides the ambient rotation while active.
 - **Live data** — stock quotes (Finnhub) and weather (Open-Meteo, multi-location).
-- **12-hour clock** — steady "H:MM" when shown alone, scrolls "H:MM AM/PM" when mixed with other categories. Pacific timezone by default (change the POSIX TZ in `initTime()`).
+- **12-hour clock** — steady "H:MM" when shown alone, scrolls "H:MM AM/PM" when mixed with other categories. Pacific timezone by default (change `TIMEZONE` in `src/config.h`).
 - **Companion [iOS app](ios/README.md)** — multi-device switcher, preset chip grid, per-category Display toggles.
 - **Configured entirely over BLE** — no build-time secrets. WiFi creds, Finnhub key, tickers, locations, mode, and active sign all settable wirelessly and persisted in NVS.
 
@@ -42,7 +42,7 @@ Carries the Freenove module + a MAX7219 matrix header on a single board. Designe
 ## Quick start
 
 1. Install [PlatformIO](https://platformio.org/).
-2. Optionally edit defaults in `src/config.h` (stock tickers, weather locations) — used to seed NVS on first boot only.
+2. Optionally edit defaults in `src/config.h` — seed tickers/locations (first-boot NVS seed) plus user tunables (timezone, scroll speed, brightness, fetch interval, NTP server).
 3. Build and upload: `pio run -t upload`. Press the physical reset button after flashing.
 4. On first boot the display alternates `Configure WiFi over BLE` with the device name (e.g. `LED-Ticker-AB12`). Configure WiFi and your [Finnhub API key](https://finnhub.io/register) over BLE:
    ```
@@ -83,11 +83,20 @@ For building a custom BLE client, see [BLE_PROTOCOL.md](BLE_PROTOCOL.md) — UUI
 
 ## Configuration
 
-Tunables at the top of `src/main.cpp`:
+**User tunables — `src/config.h`:**
 
 | Define | Default | Description |
 |--------|---------|-------------|
-| `SCROLL_SPEED` | 60 | ms per frame (lower = faster) |
+| `SCROLL_SPEED` | 60 | ms per scroll step (lower = faster) |
+| `DISPLAY_INTENSITY` | 2 | LED brightness, 0–15 |
+| `TIMEZONE` | `PST8PDT,M3.2.0,M11.1.0` | POSIX TZ string |
+| `NTP_SERVER` | `pool.ntp.org` | NTP host |
 | `FETCH_INTERVAL_MS` | 5 min | Stock + weather refresh interval |
+
+**Hardware — `src/main.cpp` (edit if porting to a different board):**
+
+| Define | Default | Description |
+|--------|---------|-------------|
 | `MAX_DEVICES` | 4 | Number of 8x8 LED modules |
+| `DIN_PIN` / `CLK_PIN` / `CS_PIN` | 6 / 4 / 5 | SPI pins to the matrix |
 | `RGB_LED_PIN` | 48 | Onboard NeoPixel for fetch indicator |
