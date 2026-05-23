@@ -44,7 +44,7 @@ Carries the Freenove module + a MAX7219 matrix header on a single board. Designe
 1. Install [PlatformIO](https://platformio.org/).
 2. Optionally edit defaults in `src/config.h` — seed tickers/locations (first-boot NVS seed) plus user tunables (timezone, scroll speed, brightness, fetch interval, NTP server).
 3. Build and upload: `pio run -t upload`. Press the physical reset button after flashing.
-4. On first boot the display alternates `Configure WiFi over BLE` with the device name (e.g. `LED-Ticker-AB12`). Configure WiFi and your [Finnhub API key](https://finnhub.io/register) over BLE:
+4. On first boot the display scrolls the BLE device name (e.g. `LED-Ticker-AB12`) — that's what to look for in the iOS app or CLI. Configure WiFi and your [Finnhub API key](https://finnhub.io/register) over BLE:
    ```
    uv run tools/led.py wifi My Network Name password123
    uv run tools/led.py apikey your-finnhub-key
@@ -88,7 +88,7 @@ For building a custom BLE client, see [BLE_PROTOCOL.md](BLE_PROTOCOL.md) — UUI
 | Define | Default | Description |
 |--------|---------|-------------|
 | `SCROLL_SPEED` | 60 | ms per scroll step (lower = faster) |
-| `DISPLAY_INTENSITY` | 2 | LED brightness, 0–15 |
+| `DISPLAY_INTENSITY` | 2 | LED brightness, 0–15. Idle mode (post-sign with no ambient data) dims to 0 regardless of this setting. |
 | `TIMEZONE` | `PST8PDT,M3.2.0,M11.1.0` | POSIX TZ string |
 | `NTP_SERVER` | `pool.ntp.org` | NTP host |
 | `FETCH_INTERVAL_MS` | 5 min | Stock + weather refresh interval |

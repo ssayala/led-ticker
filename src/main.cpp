@@ -22,6 +22,7 @@ enum
 {
   MODE_CONTENT,
   MODE_SETUP,
+  MODE_IDLE,
 };
 #define BIT_STOCKS 0x01
 #define BIT_WEATHER 0x04
@@ -302,13 +303,15 @@ void loadDisplayMaskFromNVS()
 // Setup-mode state
 // ============================================================================
 // When the user requests categories whose prereqs aren't satisfied, the
-// display drops into MODE_SETUP showing a hint. `setupTargetMask` records what
-// to resume into once prereqs are met (or after the inactivity timeout).
+// display drops into MODE_SETUP and scrolls the BLE device name (e.g.
+// "LED-Ticker-AB12") on a loop so the user can identify which device to
+// connect to in the iOS app. `setupTargetMask` records what to resume into
+// once prereqs are met (or after the inactivity timeout). No "Configure
+// WiFi over BLE" hint — the audience already knows the BLE-config workflow.
 
 #define SETUP_TIMEOUT_MS 60000
 
 volatile unsigned long setupLastActivityMs = 0;
-unsigned int setupFrame = 0;
 uint8_t setupTargetMask = MASK_ALL;
 
 // ============================================================================
@@ -758,9 +761,13 @@ void connectWifi()
 // ============================================================================
 // Display rotation & rendering
 // ============================================================================
-// MODE_CONTENT cycles through enabled categories; MODE_SETUP shows hints until
-// prereqs are met. Active-status (sign mode) is an orthogonal override layered
-// on top by checkStatusForRender()/tickActiveStatus().
+// MODE_CONTENT cycles through enabled categories. MODE_SETUP scrolls the BLE
+// device name when prereqs are missing (pre-config affordance). MODE_IDLE is
+// a quiet bouncing-pixel state entered after a sign clears on a device whose
+// prereqs are still unmet — the user has already discovered the device, so
+// re-scrolling the name would be noise. Active-status (sign mode) is an
+// orthogonal override layered on top by checkStatusForRender()/
+// tickActiveStatus().
 
 int currentMode = MODE_CONTENT;
 
@@ -848,6 +855,72 @@ void tickStaticClock()
   lastMin = t.tm_min;
 }
 
+// MODE_IDLE animation: a single pixel bounces diagonally around the 8x32
+// matrix at ~150 ms/step, reflecting off all four walls Pong-style. Quiet
+// "alive" signal shown after a sign clears on a device whose ambient prereqs
+// aren't met — the user has already discovered this device (they sent the
+// sign) so we don't need to identify it the way MODE_SETUP does.
+#define IDLE_STEP_MS 150
+#define IDLE_COL_MAX (8 * MAX_DEVICES - 1)
+#define IDLE_ROW_MAX 7
+
+// enterIdle() is in the mode-transitions group below alongside enterContent()
+// and enterSetup(); these statics live here next to tickIdle() that consumes
+// them.
+static int idlePixelCol = 0;
+static int idlePixelRow = 0;
+static int idlePixelDirX = 1;
+static int idlePixelDirY = 1;
+static unsigned long idleLastStepMs = 0;
+static bool idleNeedsFirstPaint = false;
+
+void tickIdle()
+{
+  MD_MAX72XX *mx = display.getGraphicObject();
+  unsigned long now = millis();
+
+  if (idleNeedsFirstPaint)
+  {
+    mx->clear();
+    mx->setPoint(idlePixelRow, idlePixelCol, true);
+    idleLastStepMs = now;
+    idleNeedsFirstPaint = false;
+    return;
+  }
+
+  if (now - idleLastStepMs < IDLE_STEP_MS)
+    return;
+  idleLastStepMs = now;
+
+  mx->setPoint(idlePixelRow, idlePixelCol, false);
+
+  idlePixelCol += idlePixelDirX;
+  if (idlePixelCol >= IDLE_COL_MAX)
+  {
+    idlePixelCol = IDLE_COL_MAX;
+    idlePixelDirX = -1;
+  }
+  else if (idlePixelCol <= 0)
+  {
+    idlePixelCol = 0;
+    idlePixelDirX = 1;
+  }
+
+  idlePixelRow += idlePixelDirY;
+  if (idlePixelRow >= IDLE_ROW_MAX)
+  {
+    idlePixelRow = IDLE_ROW_MAX;
+    idlePixelDirY = -1;
+  }
+  else if (idlePixelRow <= 0)
+  {
+    idlePixelRow = 0;
+    idlePixelDirY = 1;
+  }
+
+  mx->setPoint(idlePixelRow, idlePixelCol, true);
+}
+
 // --- Category rotation helpers ---
 
 static bool stocksAvailable()
@@ -915,12 +988,26 @@ static uint8_t firstActiveBit()
 
 // --- Mode transitions ---
 
+// All three enter*() helpers call displayClear() so transitions between modes
+// are clean — important specifically for IDLE→anything else, where tickIdle's
+// raw setPoint() leaves a lit row-7 pixel that the scroll pump or static-clock
+// path won't necessarily overwrite. enterIdle() is the exception when re-
+// entered while already in IDLE (idempotent path): position state is preserved
+// and no clear is issued, so the bouncing pixel doesn't snap back to col 0.
+//
+// Brightness also tracks the mode: MODE_IDLE drops to intensity 0 (the
+// quietest non-off setting — one dim pixel says "alive" without distraction)
+// and the other two modes restore DISPLAY_INTENSITY. tickActiveStatus()
+// handles the sign-overrides-idle case by restoring intensity itself.
+
 void enterContent()
 {
   currentMode = MODE_CONTENT;
   currentStock = 0;
   currentWeather = 0;
   currentBit = firstActiveBit();
+  display.setIntensity(DISPLAY_INTENSITY);
+  display.displayClear();
 }
 
 bool maskPrereqsReady(uint8_t mask)
@@ -939,13 +1026,38 @@ void enterSetup(uint8_t targetMask)
   currentMode = MODE_SETUP;
   setupTargetMask = targetMask ? targetMask : MASK_ALL;
   setupLastActivityMs = millis();
-  setupFrame = 0;
+  display.setIntensity(DISPLAY_INTENSITY);
+  display.displayClear();
+}
+
+void enterIdle()
+{
+  // Re-entry while already in MODE_IDLE preserves the bouncing-pixel
+  // position (no col=0 snap-back) but still clears + flags a first paint
+  // so any out-of-band display content — typically a sign that overrode
+  // idle and just cleared — gets wiped before tickIdle resumes.
+  bool wasIdle = (currentMode == MODE_IDLE);
+  currentMode = MODE_IDLE;
+  if (!wasIdle)
+  {
+    idlePixelCol = 0;
+    idlePixelRow = 0;
+    idlePixelDirX = 1;
+    idlePixelDirY = 1;
+  }
+  idleLastStepMs = 0;
+  idleNeedsFirstPaint = true;
+  display.setIntensity(0);
+  display.displayClear();
 }
 
 // Formats the current mode for BLE read responses and debug logs:
 //   "setup" — in MODE_SETUP
-//   "all"   — MODE_CONTENT with the full mask
+//   "all"   — MODE_CONTENT (or MODE_IDLE) with the full mask
 //   "stocks,weather" etc. for any subset.
+// MODE_IDLE is a transient display state (post-sign with unmet prereqs), not
+// a configured mode — it reports the canonical mask the same way MODE_CONTENT
+// does, so clients see the categories that *will* rotate once prereqs are met.
 static int formatModeName(char *buf, size_t bufLen)
 {
   if (currentMode == MODE_SETUP)
@@ -974,31 +1086,34 @@ static int formatModeName(char *buf, size_t bufLen)
 
 void exitSetupIfReady()
 {
-  if (currentMode != MODE_SETUP)
+  // Handles MODE_SETUP (resume into the saved target mask) and MODE_IDLE
+  // (resume into the existing enabledMask). Both are "waiting for prereqs"
+  // states; once prereqs are met for the relevant mask, drop into content.
+  if (currentMode == MODE_SETUP)
+  {
+    if (!maskPrereqsReady(setupTargetMask))
+      return;
+    enabledMask = setupTargetMask;
+    saveDisplayMaskToNVS();
+  }
+  else if (currentMode == MODE_IDLE)
+  {
+    if (!maskPrereqsReady(enabledMask))
+      return;
+  }
+  else
+  {
     return;
-  if (!maskPrereqsReady(setupTargetMask))
-    return;
-  enabledMask = setupTargetMask;
-  saveDisplayMaskToNVS();
+  }
   enterContent();
   char buf[64];
   formatModeName(buf, sizeof(buf));
-  Serial.printf("Setup: prereqs satisfied, exiting to %s\n", buf);
+  Serial.printf("Prereqs satisfied, exiting to %s\n", buf);
 }
 
 void showNextSetup()
 {
-  // Hint targets the first unsatisfied prereq in setupTargetMask.
-  const char *hint;
-  if (!wifiConfigured())
-    hint = "Configure WiFi over BLE";
-  else if ((setupTargetMask & BIT_STOCKS) && !apiKeyConfigured())
-    hint = "Set Finnhub key";
-  else if ((setupTargetMask & BIT_WEATHER))
-    hint = "Weather needs WiFi";
-  else
-    hint = "Configure WiFi over BLE";
-  scrollText((setupFrame++ % 2 == 0) ? hint : bleDeviceName);
+  scrollText(bleDeviceName);
 }
 
 void showNext()
@@ -1008,6 +1123,10 @@ void showNext()
     showNextSetup();
     return;
   }
+  // MODE_IDLE renders via tickIdle() in loop(), never through the scroll
+  // pump. Bail so a stray showNext() doesn't clobber the bouncing pixel.
+  if (currentMode == MODE_IDLE)
+    return;
 
   // Defensive: an out-of-mask currentBit can occur after a mask change.
   if (!(enabledMask & currentBit))
@@ -1065,6 +1184,18 @@ static void invalidateStatusRender()
   statusShown[0] = '\0';
 }
 
+// After a sign clears (manually or by expiry), pick the right ambient mode:
+// content if prereqs are met, otherwise MODE_IDLE (bouncing pixel) so we
+// don't dump the user into a "Loading X..." spam loop or back into the
+// setup-name scroll they've already seen.
+static void resumeAmbient()
+{
+  if (maskPrereqsReady(enabledMask))
+    enterContent();
+  else
+    enterIdle();
+}
+
 // Combined gate + expiry check. Returns true if status should render right
 // now; if a timed status has passed its expiry, clears and resumes ambient
 // in-place (so the caller just falls through to the normal render path).
@@ -1085,8 +1216,7 @@ bool checkStatusForRender()
   Serial.printf("Status: \"%s\" expired, clearing\n", activeStatusText);
   clearStatus();
   invalidateStatusRender();
-  display.displayClear();
-  enterContent();
+  resumeAmbient();  // enter*() helpers clear the display on transition
   return false;
 }
 
@@ -1094,8 +1224,7 @@ static void clearActiveStatusAndResume()
 {
   clearStatus();
   invalidateStatusRender();
-  display.displayClear();
-  enterContent();
+  resumeAmbient();  // enter*() helpers clear the display on transition
 }
 
 void tickActiveStatus()
@@ -1105,6 +1234,8 @@ void tickActiveStatus()
     strncpy(statusShown, activeStatusText, sizeof(statusShown) - 1);
     statusShown[sizeof(statusShown) - 1] = '\0';
     statusShownIsScroll = strlen(activeStatusText) > STATUS_STATIC_MAX_CHARS;
+    // Restore normal brightness in case we were dim from MODE_IDLE.
+    display.setIntensity(DISPLAY_INTENSITY);
     display.displayClear();
     if (statusShownIsScroll)
     {
@@ -1887,6 +2018,10 @@ void loop()
   if (checkStatusForRender())
   {
     tickActiveStatus();
+  }
+  else if (currentMode == MODE_IDLE)
+  {
+    tickIdle();
   }
   else if (currentMode == MODE_CONTENT && enabledMask == BIT_CLOCK && timeReady)
   {

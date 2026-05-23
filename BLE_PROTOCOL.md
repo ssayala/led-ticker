@@ -30,9 +30,9 @@ Comma-separated symbols. Example: `AAPL,MSFT,GOOGL`. Up to 10 symbols, 15 chars 
 ### Mode
 A single category (`stocks`, `weather`, `clock`), the keyword `all`, or a comma-separated subset (e.g. `stocks,weather`). The mask is persisted to NVS and survives reboots. The device round-robins through enabled categories, one full pass per cycle. When `clock` is the *only* enabled category, the display switches to a steady "H:MM"; in any mix with other categories it scrolls as "H:MM AM/PM" alongside them.
 
-Requesting a subset whose prereqs are missing (e.g. stocks without WiFi/API key) diverts the display to setup mode until the missing pieces are configured (or the 60s inactivity timer falls into the chosen mode).
+Requesting a subset whose prereqs are missing (e.g. stocks without WiFi/API key) diverts the display to **setup mode** — the device scrolls its BLE name on a loop until the missing pieces are configured (or the 60s inactivity timer falls into the chosen mode).
 
-The Status characteristic is **orthogonal** to the mode mask: an active sign overrides the ambient mode until cleared or expired.
+The Status characteristic is **orthogonal** to the mode mask: an active sign overrides the ambient mode until cleared or expired. When a sign clears (manually or by expiry) on a device whose prereqs are still unmet, the display drops to **idle mode** instead of returning to the setup-name scroll — a single dim pixel bounces around the matrix as a quiet "alive" indicator (the user has already discovered the device by sending the sign, so re-scrolling the name would be noise). Mode reads continue to return the configured mask either way; `idle` is an internal display state, not a settable mode.
 
 ### Status
 Write `text|N` to set, empty payload to clear.
