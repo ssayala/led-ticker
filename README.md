@@ -61,10 +61,11 @@ uv run tools/led.py status "BUSY" 30      # show for 30 min, then auto-clear
 uv run tools/led.py status "ON AIR"       # indefinite
 uv run tools/led.py status clear
 
-# Ambient mode (subset of stocks/weather/clock, or 'all')
+# Ambient mode (subset of stocks/weather/clock, 'all', or 'none' for sign-only)
 uv run tools/led.py mode stocks weather
 uv run tools/led.py mode clock
 uv run tools/led.py mode all
+uv run tools/led.py mode none
 
 # Data
 uv run tools/led.py tickers AAPL TSLA NVDA SPY
@@ -89,6 +90,7 @@ For building a custom BLE client, see [BLE_PROTOCOL.md](BLE_PROTOCOL.md) — UUI
 |--------|---------|-------------|
 | `SCROLL_SPEED` | 60 | ms per scroll step (lower = faster) |
 | `DISPLAY_INTENSITY` | 2 | LED brightness, 0–15. Idle mode (post-sign with no ambient data) dims to 0 regardless of this setting. |
+| `SIGN_BREATH_MIN/MAX_INTENSITY`, `STEP_MS` | 1 / 6 / 400 | Subtle brightness pulse on static signs. Tune the three together — changing one in isolation loses the "breath" feel. |
 | `TIMEZONE` | `PST8PDT,M3.2.0,M11.1.0` | POSIX TZ string |
 | `NTP_SERVER` | `pool.ntp.org` | NTP host |
 | `FETCH_INTERVAL_MS` | 5 min | Stock + weather refresh interval |

@@ -29,6 +29,12 @@ enum
 #define BIT_CLOCK 0x08
 #define MASK_ALL (BIT_STOCKS | BIT_WEATHER | BIT_CLOCK)
 
+// Parser sentinel for the explicit "none" mode (sign-only with idle pixel
+// between signs). Distinct from 0 (which parseModePayload returns for
+// invalid input) so applyPendingMode can tell them apart. Never stored in
+// enabledMask — that holds 0 when "none" is the active selection.
+#define MASK_NONE_REQUEST 0x80
+
 // ============================================================================
 // Hardware & display constants
 // ============================================================================
@@ -291,9 +297,9 @@ void loadDisplayMaskFromNVS()
   prefs.begin("display", true);
   if (prefs.isKey("mask"))
   {
-    uint8_t m = prefs.getUChar("mask", MASK_ALL) & MASK_ALL;
-    if (m != 0)
-      enabledMask = m;
+    // mask=0 is now a valid persisted value ("none" mode — sign-only with
+    // idle pixel between signs), so don't fall back to MASK_ALL here.
+    enabledMask = prefs.getUChar("mask", MASK_ALL) & MASK_ALL;
   }
   prefs.end();
   Serial.printf("Display mask: 0x%02X\n", enabledMask);
@@ -319,10 +325,12 @@ uint8_t setupTargetMask = MASK_ALL;
 // ============================================================================
 // The "sign mode" override: when activeStatusText is non-empty and not yet
 // expired, the loop renders it (steady if short, scrolling if long) in
-// place of the normal ambient rotation. statusExpiresAt is a Unix epoch
-// second; 0 means "no status active", UINT32_MAX means "indefinite (until
-// cleared)". State is in-RAM only — a power cycle clears any active sign
-// and the device resumes its ambient mode.
+// place of the normal ambient rotation. statusExpiresAt is a millis()
+// target value (NOT a Unix epoch — relative timing works without WiFi/NTP);
+// 0 means "no status active", UINT32_MAX means "indefinite (until cleared)".
+// Wrap-safe via signed-delta comparison in checkStatusForRender. State is
+// in-RAM only — a power cycle clears any active sign and the device
+// resumes its ambient mode.
 
 // Active-status text fits in MAX_STRING_LEN; up to 5 chars renders static,
 // longer scrolls. See tickActiveStatus().
@@ -717,9 +725,18 @@ static void fetchTask(void *)
   {
     uint32_t forceVal;
     xTaskNotifyWait(0, 0, &forceVal, portMAX_DELAY);
+    // None mode (enabledMask == 0) → nothing to display, nothing to fetch.
+    // Skip before flipping the blue-LED indicator. uint8_t reads are atomic
+    // on ESP32; a racy read here at worst causes one wasted fetch cycle.
+    if (enabledMask == 0)
+      continue;
     fetching = true;
+    unsigned long t0 = millis();
+    Serial.printf("[fetch] start mask=0x%02X force=%lu\n",
+                  enabledMask, (unsigned long)forceVal);
     fetchStocksImpl((bool)forceVal);
     fetchWeatherImpl();
+    Serial.printf("[fetch] end took=%lums\n", millis() - t0);
     fetching = false;
   }
 }
@@ -1053,15 +1070,20 @@ void enterIdle()
 
 // Formats the current mode for BLE read responses and debug logs:
 //   "setup" — in MODE_SETUP
+//   "none"  — enabledMask == 0 (explicit sign-only / always-idle)
 //   "all"   — MODE_CONTENT (or MODE_IDLE) with the full mask
 //   "stocks,weather" etc. for any subset.
-// MODE_IDLE is a transient display state (post-sign with unmet prereqs), not
-// a configured mode — it reports the canonical mask the same way MODE_CONTENT
-// does, so clients see the categories that *will* rotate once prereqs are met.
+// MODE_IDLE on its own is a transient display state and reports the
+// underlying enabledMask the same way MODE_CONTENT does — so clients see
+// the categories that *will* rotate once prereqs are met. The "none"
+// branch is different: it reflects the user's explicit "no categories"
+// selection, which persists across reboots.
 static int formatModeName(char *buf, size_t bufLen)
 {
   if (currentMode == MODE_SETUP)
     return snprintf(buf, bufLen, "setup");
+  if (enabledMask == 0)
+    return snprintf(buf, bufLen, "none");
   if (enabledMask == MASK_ALL)
     return snprintf(buf, bufLen, "all");
   int len = 0;
@@ -1089,6 +1111,7 @@ void exitSetupIfReady()
   // Handles MODE_SETUP (resume into the saved target mask) and MODE_IDLE
   // (resume into the existing enabledMask). Both are "waiting for prereqs"
   // states; once prereqs are met for the relevant mask, drop into content.
+  // An explicit mask=0 ("none") in MODE_IDLE is sticky — never exits.
   if (currentMode == MODE_SETUP)
   {
     if (!maskPrereqsReady(setupTargetMask))
@@ -1098,7 +1121,7 @@ void exitSetupIfReady()
   }
   else if (currentMode == MODE_IDLE)
   {
-    if (!maskPrereqsReady(enabledMask))
+    if (enabledMask == 0 || !maskPrereqsReady(enabledMask))
       return;
   }
   else
@@ -1185,12 +1208,13 @@ static void invalidateStatusRender()
 }
 
 // After a sign clears (manually or by expiry), pick the right ambient mode:
-// content if prereqs are met, otherwise MODE_IDLE (bouncing pixel) so we
-// don't dump the user into a "Loading X..." spam loop or back into the
-// setup-name scroll they've already seen.
+// content if prereqs are met and at least one category is enabled, otherwise
+// MODE_IDLE (bouncing pixel) so we don't dump the user into a "Loading X..."
+// spam loop, back into the setup-name scroll they've already seen, or out
+// of an explicit "none" selection.
 static void resumeAmbient()
 {
-  if (maskPrereqsReady(enabledMask))
+  if (enabledMask != 0 && maskPrereqsReady(enabledMask))
     enterContent();
   else
     enterIdle();
@@ -1199,18 +1223,18 @@ static void resumeAmbient()
 // Combined gate + expiry check. Returns true if status should render right
 // now; if a timed status has passed its expiry, clears and resumes ambient
 // in-place (so the caller just falls through to the normal render path).
-// One time(NULL) per call instead of the two we'd pay if expiry and the
-// render gate were separate functions.
+// Single millis() call per invocation instead of two we'd pay if expiry
+// and the render gate were separate functions.
 bool checkStatusForRender()
 {
   if (activeStatusText[0] == '\0')
     return false;
   if (statusExpiresAt == 0 || statusExpiresAt == UINT32_MAX)
-    return true;
-  // Timed status: can't trust expiry until NTP has set the clock.
-  if (!timeReady)
-    return false;
-  if ((uint32_t)time(NULL) < statusExpiresAt)
+    return true;  // 0 is defensive (shouldn't happen w/ text non-empty); UINT32_MAX = indefinite
+  // Signed-delta is wrap-safe: if statusExpiresAt is still in the future,
+  // (millis() - statusExpiresAt) underflows to a large unsigned which cast
+  // to int32_t is negative.
+  if ((int32_t)(millis() - statusExpiresAt) < 0)
     return true;
 
   Serial.printf("Status: \"%s\" expired, clearing\n", activeStatusText);
@@ -1226,6 +1250,14 @@ static void clearActiveStatusAndResume()
   invalidateStatusRender();
   resumeAmbient();  // enter*() helpers clear the display on transition
 }
+
+// Static signs sit still by default — give them subtle "breathing" by
+// stepping the MAX7219 intensity between SIGN_BREATH_MIN/MAX_INTENSITY every
+// SIGN_BREATH_STEP_MS (see config.h). Scrolling signs already have motion,
+// so they keep the steady DISPLAY_INTENSITY.
+static int signBreathLevel = DISPLAY_INTENSITY;
+static int signBreathDir = 1;
+static unsigned long signBreathStepMs = 0;
 
 void tickActiveStatus()
 {
@@ -1247,12 +1279,38 @@ void tickActiveStatus()
     {
       display.displayText(activeStatusText, PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
       display.displayAnimate();
+      // Reset breathing for a fresh start on the new sign.
+      signBreathLevel = DISPLAY_INTENSITY;
+      signBreathDir = 1;
+      signBreathStepMs = millis();
     }
   }
 
-  // Only the scroll path needs the per-tick animation pump.
-  if (statusShownIsScroll && display.displayAnimate())
-    display.displayReset(); // loop the same scroll
+  if (statusShownIsScroll)
+  {
+    // Scroll path: just pump the animation. No breathing.
+    if (display.displayAnimate())
+      display.displayReset(); // loop the same scroll
+    return;
+  }
+
+  // Static path: step the breathing intensity when the timer elapses.
+  unsigned long now = millis();
+  if (now - signBreathStepMs < SIGN_BREATH_STEP_MS)
+    return;
+  signBreathStepMs = now;
+  signBreathLevel += signBreathDir;
+  if (signBreathLevel >= SIGN_BREATH_MAX_INTENSITY)
+  {
+    signBreathLevel = SIGN_BREATH_MAX_INTENSITY;
+    signBreathDir = -1;
+  }
+  else if (signBreathLevel <= SIGN_BREATH_MIN_INTENSITY)
+  {
+    signBreathLevel = SIGN_BREATH_MIN_INTENSITY;
+    signBreathDir = 1;
+  }
+  display.setIntensity(signBreathLevel);
 }
 
 // ============================================================================
@@ -1636,6 +1694,8 @@ static uint8_t parseModePayload(const char *in)
 {
   if (strcmp(in, "all") == 0)
     return MASK_ALL;
+  if (strcmp(in, "none") == 0)
+    return MASK_NONE_REQUEST;
 
   char buf[64];
   strncpy(buf, in, sizeof(buf) - 1);
@@ -1675,12 +1735,21 @@ void applyPendingMode()
     Serial.printf("BLE: unknown/empty mode \"%s\", ignoring\n", pendingModeStr);
     return;
   }
-  enabledMask = mask;
-  saveDisplayMaskToNVS();
-  if (!maskPrereqsReady(mask))
-    enterSetup(mask);
+  if (mask == MASK_NONE_REQUEST)
+  {
+    enabledMask = 0;
+    saveDisplayMaskToNVS();
+    enterIdle();
+  }
   else
-    enterContent();
+  {
+    enabledMask = mask;
+    saveDisplayMaskToNVS();
+    if (!maskPrereqsReady(mask))
+      enterSetup(mask);
+    else
+      enterContent();
+  }
   char buf[64];
   formatModeName(buf, sizeof(buf));
   Serial.printf("BLE: mode -> %s\n", buf);
@@ -1726,8 +1795,8 @@ class StatusCallbacks : public NimBLECharacteristicCallbacks
     uint32_t remaining = 0; // 0 means "indefinite" on the read side
     if (statusExpiresAt != 0 && statusExpiresAt != UINT32_MAX)
     {
-      uint32_t now = (uint32_t)time(NULL);
-      remaining = (now < statusExpiresAt) ? (statusExpiresAt - now) : 1;
+      int32_t deltaMs = (int32_t)(statusExpiresAt - millis());
+      remaining = (deltaMs > 0) ? (uint32_t)(deltaMs / 1000) : 1;
     }
     int len = snprintf(buf, sizeof(buf), "%s|%u", activeStatusText, remaining);
     if (len < 0)
@@ -1795,23 +1864,32 @@ void applyPendingStatus()
     statusExpiresAt = UINT32_MAX;
     Serial.printf("BLE status: \"%s\" indefinite\n", activeStatusText);
   }
-  else if (!timeReady)
-  {
-    // No clock yet — store as indefinite so we don't accidentally expire on
-    // an uninitialized clock. User can re-send once NTP is up if they want
-    // a timed sign during pre-NTP windows.
-    statusExpiresAt = UINT32_MAX;
-    Serial.printf("BLE status: \"%s\" (no NTP — treating as indefinite)\n",
-                  activeStatusText);
-  }
   else
   {
-    statusExpiresAt = (uint32_t)time(NULL) + secs;
-    Serial.printf("BLE status: \"%s\" for %lus (exp=%u)\n",
+    // millis()-based: relative timing works without WiFi/NTP. Avoid the
+    // 0 and UINT32_MAX sentinels in the unlikely target collision.
+    uint32_t target = millis() + secs * 1000UL;
+    if (target == 0 || target == UINT32_MAX)
+      target = 1;
+    statusExpiresAt = target;
+    Serial.printf("BLE status: \"%s\" for %lus (target=%u ms)\n",
                   activeStatusText, secs, statusExpiresAt);
   }
   invalidateStatusRender();
   display.displayClear();
+
+  // Sign-only inference: writing a sign on a no-WiFi device is a strong
+  // signal that this unit is being used as a sign, not as an ambient
+  // ticker. Persist that intent so the next boot lands in MODE_IDLE
+  // (bouncing pixel) instead of MODE_SETUP (scrolling BLE name). Setting
+  // WiFi credentials later doesn't auto-restore categories — the user
+  // writes a real mode (`mode=all`, etc.) to re-enable ambient rotation.
+  if (!wifiConfigured() && enabledMask != 0)
+  {
+    Serial.println("BLE status: no-WiFi + first sign — persisting mode=none");
+    enabledMask = 0;
+    saveDisplayMaskToNVS();
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -1965,7 +2043,9 @@ void setup()
   loadLocationsFromNVS();
   loadDisplayMaskFromNVS();
   buildDeviceName();
-  if (!maskPrereqsReady(enabledMask))
+  if (enabledMask == 0)
+    enterIdle();
+  else if (!maskPrereqsReady(enabledMask))
     enterSetup(enabledMask);
   else
     enterContent();
@@ -1980,6 +2060,18 @@ void setup()
 
 void loop()
 {
+  // Diagnostic heartbeat: if the matrix freezes but heartbeats keep coming,
+  // the SPI/Parola path is stuck. If heartbeats stop, the whole loop hung.
+  // Rate-limited so it's quiet under normal use; safe to leave in.
+  static unsigned long lastHeartbeatMs = 0;
+  unsigned long nowMs = millis();
+  if (nowMs - lastHeartbeatMs > 5000)
+  {
+    lastHeartbeatMs = nowMs;
+    Serial.printf("[hb] mode=%d mask=0x%02X fetching=%d millis=%lu\n",
+                  currentMode, enabledMask, fetching, nowMs);
+  }
+
   if (wifiUpdatePending)
     applyPendingWifi();
   if (apiKeyUpdatePending)

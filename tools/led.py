@@ -102,16 +102,19 @@ def cmd_status(args):
 def cmd_mode(args):
     valid = {"stocks", "weather", "clock"}
     if not args:
-        print("Usage: led.py mode all | <category> [<category> ...]")
+        print("Usage: led.py mode all | none | <category> [<category> ...]")
         print("  where <category> is one of: stocks, weather, clock")
+        print("  'none' = sign-only (idle pixel between signs)")
         sys.exit(1)
     if args == ["all"]:
         payload = "all"
+    elif args == ["none"]:
+        payload = "none"
     else:
         bad = [a for a in args if a not in valid]
         if bad:
             print(f"ERROR: unknown mode token(s): {', '.join(bad)}")
-            print("  valid: stocks, weather, clock (or the single word 'all')")
+            print("  valid: stocks, weather, clock (or 'all' / 'none')")
             sys.exit(1)
         # de-dupe while preserving order
         seen = []

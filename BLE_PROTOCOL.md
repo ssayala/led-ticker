@@ -28,7 +28,9 @@ UUID `...26aa` was once a "Messages" characteristic and is **not** registered in
 Comma-separated symbols. Example: `AAPL,MSFT,GOOGL`. Up to 10 symbols, 15 chars each.
 
 ### Mode
-A single category (`stocks`, `weather`, `clock`), the keyword `all`, or a comma-separated subset (e.g. `stocks,weather`). The mask is persisted to NVS and survives reboots. The device round-robins through enabled categories, one full pass per cycle. When `clock` is the *only* enabled category, the display switches to a steady "H:MM"; in any mix with other categories it scrolls as "H:MM AM/PM" alongside them.
+A single category (`stocks`, `weather`, `clock`), the keyword `all`, the keyword `none`, or a comma-separated subset (e.g. `stocks,weather`). The mask is persisted to NVS and survives reboots. The device round-robins through enabled categories, one full pass per cycle. When `clock` is the *only* enabled category, the display switches to a steady "H:MM"; in any mix with other categories it scrolls as "H:MM AM/PM" alongside them.
+
+`none` is sign-only mode: no ambient categories rotate, and between signs the display sits on the dim bouncing-pixel idle state. Persists across reboots like any other mask; reads return `"none"`.
 
 Requesting a subset whose prereqs are missing (e.g. stocks without WiFi/API key) diverts the display to **setup mode** — the device scrolls its BLE name on a loop until the missing pieces are configured (or the 60s inactivity timer falls into the chosen mode).
 
@@ -41,7 +43,7 @@ Write `text|N` to set, empty payload to clear.
 - Text up to 96 bytes. Short text (≤5 chars) displays steady; longer text scrolls.
 - Reads return `text|M` where `M` is seconds remaining (`0` if indefinite), or empty string when no status is active.
 - Status is **RAM-only** — a power cycle clears any active sign and the device resumes its ambient mode.
-- A timed write (`N>0`) before NTP has synced is silently coerced to indefinite to avoid bad-clock expiry.
+- Timed signs use the MCU's monotonic `millis()` counter, so they work without WiFi/NTP. A 15-min timer on a no-WiFi device counts down and clears correctly.
 - There is no preset library on the device; preset chips are managed client-side (e.g. the iOS app's local list).
 
 ### Locations

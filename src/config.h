@@ -16,6 +16,16 @@ const int defaultLocationCount = sizeof(defaultLocations) / sizeof(defaultLocati
 #define SCROLL_SPEED 60     // ms per scroll step (lower = faster)
 #define DISPLAY_INTENSITY 2 // 0–15
 
+// Subtle brightness "breath" on static (non-scrolling) signs. The MAX7219
+// is integer-only with logarithmic perception, so the wide range keeps
+// individual steps as small relative jumps. Floor at 1 — intensity 0 reads
+// as too dim for an at-a-glance sign. ~4 s full breath at 400 ms/step is
+// close to a natural slow breath rate. Tune the three values together;
+// changing one in isolation tends to lose the "breath" feel.
+#define SIGN_BREATH_MIN_INTENSITY 1
+#define SIGN_BREATH_MAX_INTENSITY 6
+#define SIGN_BREATH_STEP_MS 400
+
 // --- Time / NTP ---
 // POSIX TZ string. Change TIMEZONE if not in US Pacific.
 // The NYSE market-hours check in isMarketOpen() assumes the device clock is
