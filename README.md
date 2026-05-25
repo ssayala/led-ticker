@@ -5,6 +5,7 @@ Desk sign + ambient ticker built on an ESP32-S3 and a DIYables 4-in-1 MAX7219 LE
 ## Features
 
 - **Sign mode** — one-tap status text, optional auto-clear timer, overrides the ambient rotation while active.
+- **Power toggle** — flip the display fully off (matrix dark, onboard LED dark, periodic fetches paused) without losing the saved ambient mode. Volatile; power cycle returns to on.
 - **Live data** — stock quotes (Finnhub) and weather (Open-Meteo, multi-location).
 - **12-hour clock** — steady "H:MM" when shown alone, scrolls "H:MM AM/PM" when mixed with other categories. Pacific timezone by default (change `TIMEZONE` in `src/config.h`).
 - **Companion [iOS app](ios/README.md)** — multi-device switcher, preset chip grid, per-category Display toggles.
@@ -67,6 +68,10 @@ uv run tools/led.py mode clock
 uv run tools/led.py mode all
 uv run tools/led.py mode none
 
+# Power (volatile — power cycle returns to on)
+uv run tools/led.py power on
+uv run tools/led.py power off
+
 # Data
 uv run tools/led.py tickers AAPL TSLA NVDA SPY
 uv run tools/led.py locations "Seattle, WA" 98052
@@ -75,7 +80,7 @@ uv run tools/led.py wifi My Network Name password
 
 # Inspect
 uv run tools/led.py get version           # firmware version on the device
-uv run tools/led.py get wifi|apikey|tickers|status|locations|mode  # read other settings
+uv run tools/led.py get wifi|apikey|tickers|status|locations|mode|power  # read other settings
 
 # Maintenance
 uv run tools/led.py reload                # force stock refresh

@@ -20,6 +20,7 @@ Writes are deferred: the BLE callback copies the payload and a main-loop pass ap
 | Locations | `beb5483e-36e1-4688-b7f5-ea07361b26ae` | read/write |
 | Status | `beb5483e-36e1-4688-b7f5-ea07361b26af` | read/write |
 | Version | `beb5483e-36e1-4688-b7f5-ea07361b26b0` | read |
+| Power | `beb5483e-36e1-4688-b7f5-ea07361b26b1` | read/write |
 
 UUID `...26aa` was once a "Messages" characteristic and is **not** registered in the current firmware. Reads against it fail at the GATT layer. Don't reuse the UUID.
 
@@ -63,6 +64,13 @@ Plain string — Finnhub API key. Saved to NVS, triggers an immediate stock fetc
 
 ### Version
 Read-only. Returns the firmware version (e.g. `0.1.0`) compiled into the device — the `FW_VERSION` define in `src/version.h`. Clients can use this to detect old firmware and prompt the user to flash. Older firmwares (before this characteristic existed) won't expose it; treat its absence as "unknown / pre-0.1.0".
+
+### Power
+Write `"on"` or `"off"` (case-insensitive, whitespace-tolerant) to toggle the display on/off switch. Reads return `"on"` or `"off"` reflecting current state. Unknown payloads are ignored (no GATT error; device stays in its current state).
+
+- Power is a third orthogonal layer alongside Mode and Status: writing `"off"` makes the device visually inert (matrix dark, onboard NeoPixel dark, signs suppressed, periodic fetches paused — writes that explicitly request a refresh, e.g. ticker updates or `reload`, still apply) without touching `enabledMask` or any persisted state. Writing `"on"` resumes the saved ambient mode and triggers an immediate fetch so content is fresh on wake.
+- Sign writes while off are accepted and stored but not rendered; on wake, an un-expired sign reappears. Timed signs continue counting down while off (they are not paused).
+- Power is **RAM-only — not persisted**. A power cycle returns the device to `"on"` with its saved ambient mode. Older firmwares (before this characteristic existed) won't expose it.
 
 ## Cooldown
 
