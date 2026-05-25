@@ -1886,6 +1886,81 @@ void applyPendingStatus()
 }
 
 // ----------------------------------------------------------------------------
+// BLE: Power (display on/off toggle)
+// ----------------------------------------------------------------------------
+// Orthogonal to Mode and Status: a RAM-only boolean that, when true, makes
+// the device visually inert (matrix dark, onboard NeoPixel dark, signs
+// suppressed, fetches paused). Not persisted — power cycle returns to false.
+
+static bool displayOff = false;
+
+#define BLE_POWER_CHAR_UUID "beb5483e-36e1-4688-b7f5-ea07361b26b1"
+
+NimBLECharacteristic *pPowerChar = nullptr;
+
+volatile bool powerUpdatePending = false;
+char pendingPowerStr[8]; // big enough for "on" / "off" with NUL
+
+class PowerCallbacks : public NimBLECharacteristicCallbacks
+{
+  void onWrite(NimBLECharacteristic *pChar) override
+  {
+    std::string val = pChar->getValue();
+    setupLastActivityMs = millis();
+    if (val.length() > 0 && val.length() < sizeof(pendingPowerStr))
+    {
+      memcpy(pendingPowerStr, val.c_str(), val.length());
+      pendingPowerStr[val.length()] = '\0';
+      powerUpdatePending = true;
+    }
+  }
+};
+
+// Forward declared so applyPendingPower() can call it; the real body
+// (clear matrix, kill NeoPixel, trigger fetch on wake) lands in Task 2.
+// The current definition at the bottom of this section is a TODO stub.
+void setPower(bool off);
+
+void applyPendingPower()
+{
+  char buf[sizeof(pendingPowerStr)];
+  strncpy(buf, pendingPowerStr, sizeof(buf) - 1);
+  buf[sizeof(buf) - 1] = '\0';
+  powerUpdatePending = false;
+
+  // Tolerant of " ON\n", "Off", etc. — iOS and led.py both send unadorned
+  // tokens but a manual BLE GUI client may add trailing whitespace.
+  char *p = buf;
+  while (*p == ' ' || *p == '\t') p++;
+  char tok[8];
+  size_t i = 0;
+  while (p[i] && p[i] != ' ' && p[i] != '\t' && p[i] != '\n' && p[i] != '\r' && i < sizeof(tok) - 1)
+  {
+    tok[i] = (p[i] >= 'A' && p[i] <= 'Z') ? (p[i] + 32) : p[i];
+    i++;
+  }
+  tok[i] = '\0';
+
+  if (strcmp(tok, "off") == 0)
+  {
+    setPower(true);
+  }
+  else if (strcmp(tok, "on") == 0)
+  {
+    setPower(false);
+  }
+  else
+  {
+    Serial.printf("BLE power: unknown value \"%s\", ignoring\n", pendingPowerStr);
+  }
+}
+
+// TODO(task2): delete this stub. The real setPower() lives in Task 2 and
+// will collide with this one at link time, so the Task 2 implementer
+// MUST remove this block before adding the real body.
+void setPower(bool off) { displayOff = off; }
+
+// ----------------------------------------------------------------------------
 // BLE: Version (read-only)
 // ----------------------------------------------------------------------------
 
@@ -2027,6 +2102,11 @@ void initBLE()
   // even if onRead hasn't fired yet on this peer.
   pVersionChar->setValue(FW_VERSION);
 
+  pPowerChar =
+      pService->createCharacteristic(BLE_POWER_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE);
+  pPowerChar->setCallbacks(new PowerCallbacks());
+  pPowerChar->setValue("on");
+
   pService->start();
   NimBLEAdvertising *pAdv = NimBLEDevice::getAdvertising();
   pAdv->addServiceUUID(BLE_SERVICE_UUID);
@@ -2115,6 +2195,8 @@ void loop()
     applyPendingLocations();
   if (statusUpdatePending)
     applyPendingStatus();
+  if (powerUpdatePending)
+    applyPendingPower();
 
   updateStatusLed();
 
