@@ -5,4 +5,4 @@
 // so the string here and the tag in history always point at the same code.
 // Surfaced on Serial at boot and via the Version BLE characteristic so
 // the iOS app and `tools/led.py get version` can identify what's running.
-#define FW_VERSION "0.2.0"
+#define FW_VERSION "0.2.1"

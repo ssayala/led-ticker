@@ -1962,7 +1962,15 @@ void setPower(bool off)
     Serial.println("Power: display ON");
   }
 
-  pPowerChar->setValue(off ? "off" : "on");
+  // Explicit (byte-ptr, length) form. The terser `setValue(off ? "off" : "on")`
+  // matches NimBLE-Arduino's template overload setValue<T>(const T&) — for a
+  // `const char*` (which is what the ternary produces, since the literals
+  // decay), sizeof(T) is the pointer size, so the *pointer address* gets
+  // stored instead of the string contents. Reads then return 4 bytes of
+  // garbage. Writes still work (they go through onWrite), so this hides
+  // until a client tries to read.
+  if (off) pPowerChar->setValue((uint8_t *)"off", 3);
+  else     pPowerChar->setValue((uint8_t *)"on",  2);
 }
 
 void applyPendingPower()
@@ -2145,7 +2153,8 @@ void initBLE()
   pPowerChar =
       pService->createCharacteristic(BLE_POWER_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE);
   pPowerChar->setCallbacks(new PowerCallbacks());
-  pPowerChar->setValue("on");
+  // See setPower() for why we use the explicit (uint8_t*, len) form.
+  pPowerChar->setValue((uint8_t *)"on", 2);
 
   pService->start();
   NimBLEAdvertising *pAdv = NimBLEDevice::getAdvertising();
