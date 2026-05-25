@@ -1755,7 +1755,14 @@ void applyPendingMode()
     if (!maskPrereqsReady(mask))
       enterSetup(mask);
     else
+    {
       enterContent();
+      // User just asked for these categories — fetch now so they don't
+      // wait up to FETCH_INTERVAL_MS for the next periodic tick to fire.
+      // force=true bypasses the market-hours gate (showing the last
+      // close beats "Loading stocks..." when the market is shut).
+      triggerFetch(true);
+    }
   }
   char buf[64];
   formatModeName(buf, sizeof(buf));
