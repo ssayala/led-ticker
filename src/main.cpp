@@ -2080,6 +2080,7 @@ void applyPendingCmd()
     loadTickersFromNVS();   // re-seeds from config.h since NVS is now empty
     loadLocationsFromNVS(); // same — re-seeds default locations
     enabledMask = MASK_ALL;
+    setPower(false); // ensure display is on so MODE_SETUP scroll is visible
 
     // wifiConfigured()/apiKeyConfigured() read these RAM copies, not NVS.
     nvsWifiSsid[0] = '\0';
