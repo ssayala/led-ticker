@@ -8,7 +8,7 @@ Desk sign + ambient ticker built on an ESP32-S3 and a DIYables 4-in-1 MAX7219 LE
 - **Power toggle** — flip the display fully off (matrix dark, onboard LED dark, periodic fetches paused) without losing the saved ambient mode. Volatile; power cycle returns to on.
 - **Live data** — stock quotes (Finnhub) and weather (Open-Meteo, multi-location).
 - **12-hour clock** — steady "H:MM" when shown alone, scrolls "H:MM AM/PM" when mixed with other categories. Pacific timezone by default (change `TIMEZONE` in `src/config.h`).
-- **Companion [iOS app](ios/README.md)** — multi-device switcher, preset chip grid, per-category Display toggles.
+- **Companion [iOS app](ios/README.md)** — multi-device switcher, preset chip grid, per-category Display toggles, Power on/off switch.
 - **Configured entirely over BLE** — no build-time secrets. WiFi creds, Finnhub key, tickers, locations, mode, and active sign all settable wirelessly and persisted in NVS.
 
 ## Hardware
