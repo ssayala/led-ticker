@@ -466,11 +466,14 @@ static void fetchStocksImpl(bool force) {
       continue;
     }
 
-    String body = http.getString();
-    http.end();
-
     JsonDocument doc;
-    if (deserializeJson(doc, body)) continue;
+    DeserializationError err = deserializeJson(doc, http.getStream());
+    http.end();
+    if (err) {
+      Serial.printf("Stock JSON parse error: %s for %s\n", err.c_str(),
+                    nvsTickers[i]);
+      continue;
+    }
 
     float current = doc["c"];
     float change = doc["dp"];
@@ -556,11 +559,14 @@ static bool geocodeLocation(HTTPClient& http, const char* query,
     return false;
   }
 
-  String body = http.getString();
-  http.end();
-
   JsonDocument doc;
-  if (deserializeJson(doc, body)) return false;
+  DeserializationError err = deserializeJson(doc, http.getStream());
+  http.end();
+  if (err) {
+    Serial.printf("Geocode JSON parse error: %s for \"%s\"\n", err.c_str(),
+                  query);
+    return false;
+  }
 
   JsonVariant results = doc["results"];
   if (results.isNull() || results.size() == 0) {
@@ -623,11 +629,14 @@ static void fetchWeatherImpl() {
       continue;
     }
 
-    String body = http.getString();
-    http.end();
-
     JsonDocument doc;
-    if (deserializeJson(doc, body)) continue;
+    DeserializationError err = deserializeJson(doc, http.getStream());
+    http.end();
+    if (err) {
+      Serial.printf("Weather JSON parse error: %s for %s\n", err.c_str(),
+                    resolved[i].name);
+      continue;
+    }
 
     strncpy(tmp[count].name, resolved[i].name, MAX_LOC_NAME_LEN - 1);
     tmp[count].name[MAX_LOC_NAME_LEN - 1] = '\0';
@@ -1946,9 +1955,9 @@ void loop() {
   if (nowMs - lastHeartbeatMs > 30000) {
     lastHeartbeatMs = nowMs;
     Serial.printf(
-        "[hb] v%s mode=%d mask=0x%02X fetching=%d heap=%u millis=%lu\n",
+        "[hb] v%s mode=%d mask=0x%02X fetching=%d heap=%u min=%u millis=%lu\n",
         FW_VERSION, currentMode, enabledMask, fetching,
-        (unsigned)ESP.getFreeHeap(), nowMs);
+        (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMinFreeHeap(), nowMs);
   }
 
   if (wifiUpdatePending) applyPendingWifi();
@@ -2001,4 +2010,10 @@ void loop() {
     lastFetch = millis();
     triggerFetch();
   }
+
+  // Yield to FreeRTOS so Core 1 enters WFI/light-sleep between ticks instead
+  // of busy-spinning at 100%. Drops idle CPU and chip temperature; 1ms of
+  // jitter is invisible against the 60ms scroll cadence and the deferred-
+  // apply BLE pattern.
+  delay(1);
 }
