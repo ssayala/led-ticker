@@ -1090,10 +1090,10 @@ void showNextSetup() {
   static char lastBuiltPin[PIN_LEN + 1] = {0};
   if (strncmp(lastBuiltPin, nvsPin, sizeof(lastBuiltPin)) != 0) {
     if (nvsPin[0]) {
-      snprintf(buf, sizeof(buf), "%s  PIN %.3s %.3s", bleDeviceName, nvsPin,
-               nvsPin + 3);
+      snprintf(buf, sizeof(buf), "%s  v%s  PIN %.3s %.3s", bleDeviceName,
+               FW_VERSION, nvsPin, nvsPin + 3);
     } else {
-      snprintf(buf, sizeof(buf), "%s", bleDeviceName);
+      snprintf(buf, sizeof(buf), "%s  v%s", bleDeviceName, FW_VERSION);
     }
     strncpy(lastBuiltPin, nvsPin, sizeof(lastBuiltPin) - 1);
     lastBuiltPin[sizeof(lastBuiltPin) - 1] = '\0';
