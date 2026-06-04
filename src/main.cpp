@@ -2261,6 +2261,22 @@ void applyPendingCmd() {
     // disconnect: a client that legitimately authenticated under "off"
     // stays authenticated rather than being surprise-kicked the moment
     // enforcement flips on.
+  } else if (strncmp(pendingCmd, "timer ", 6) == 0) {
+    const char* arg = pendingCmd + 6;
+    if (strcmp(arg, "cancel") == 0) {
+      if (timerPhase != TIMER_OFF) {
+        Serial.println("BLE cmd: timer cancel");
+        cancelTimer();
+      }
+    } else {
+      char* end = nullptr;
+      long mins = strtol(arg, &end, 10);
+      if (end == arg || mins < 1 || mins > TIMER_MAX_MINUTES) {
+        Serial.printf("BLE cmd: bad timer arg \"%s\"\n", arg);
+      } else {
+        startTimer((uint32_t)mins);
+      }
+    }
   } else {
     Serial.printf("BLE cmd: unknown command \"%s\"\n", pendingCmd);
   }
