@@ -4,7 +4,7 @@ Desk sign + ambient ticker built on an ESP32-S3 and a DIYables 4-in-1 MAX7219 LE
 
 ## Features
 
-- **Sign mode** — one-tap status text, optional auto-clear timer, overrides the ambient rotation while active. Can also run as a **countdown timer** (1–99 min) that shows a live `MM:SS` on the matrix, explodes at zero, then resumes ambient.
+- **Sign mode** — one-tap status text, optional auto-clear timer, overrides the ambient rotation while active. Can also run as a **countdown timer** (1–99 min) that shows a live `MM:SS` on the matrix, plays a random animation (fireworks, sonar, "TIME!", or sparkle) at zero, then resumes ambient.
 - **Power toggle** — flip the display fully off (matrix dark, onboard LED dark, periodic fetches paused) without losing the saved ambient mode. Volatile; power cycle returns to on.
 - **Live data** — stock quotes (Finnhub) and weather (Open-Meteo, multi-location).
 - **12-hour clock** — steady "H:MM" when shown alone, scrolls "H:MM AM/PM" when mixed with other categories. Pacific timezone by default (change `TIMEZONE` in `src/config.h`).
@@ -69,7 +69,7 @@ uv run tools/led.py status "BUSY" 30      # show for 30 min, then auto-clear
 uv run tools/led.py status "ON AIR"       # indefinite
 uv run tools/led.py status clear
 
-# Timer mode (countdown sign — explodes at zero, then resumes ambient)
+# Timer mode (countdown sign — random animation at zero, then resumes ambient)
 uv run tools/led.py timer 10              # 10-minute countdown
 uv run tools/led.py timer cancel
 
