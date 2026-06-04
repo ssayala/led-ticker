@@ -76,11 +76,11 @@ A minute-granular countdown that overrides ambient like a sign, entered via the 
 State (`TimerPhase` + `timerEndAt`, all RAM-only):
 - `TIMER_OFF` — inactive; `loop()` renders sign/ambient normally.
 - `TIMER_RUN` — `tickTimer()` renders `MM:SS` (ceil-to-second so a fresh N-min timer shows `N:00` and the last frame is `0:01`), redrawn only on second change via the `lastShownTimerSec` cache. Uses the static `displayText` path (≤5 chars).
-- `TIMER_EXPLODE` — at zero, `tickExplosion()` plays an expanding-diamond shockwave (Manhattan-distance ring from `EXPLODE_CENTER_*`) plus trailing whole-matrix flashes, frame-stepped via `millis()` like `tickIdle()` (no `delay()`), drawing through `getGraphicObject()->setPoint()`. On completion it calls `resumeAmbient()`.
+- `TIMER_ANIM` — at zero, `tickEndAnim()` plays one of four end animations, chosen at random via `esp_random() % ANIM_COUNT` at the transition: **fireworks** (gravity-driven spark bursts), **sonar** (expanding rings with a global intensity pulse), **TIME-pop** (blink "TIME!" then a shockwave burst), **sparkle** (tapering random twinkle). All are frame-stepped via `millis()` like `tickIdle()` (no `delay()`), draw through `getGraphicObject()->setPoint()` (except TIME-pop's text phase, which uses the Parola path then clears it before going raw), and call `resumeAmbient()` once their `animTotalFrames()` budget elapses. Variant visuals are deterministic per frame via `animHash()`, so no RNG state is carried across frames.
 
 `loop()` gives the timer top render precedence (`if (timerPhase != TIMER_OFF) tickTimer()` ahead of `checkStatusForRender()`). Timing is `millis()`-based so it works on no-WiFi devices. `cmd=reset` forces `TIMER_OFF`.
 
-Limitations: RAM-only (a power cycle clears it). If `power off` straddles the expiry moment, the explosion plays late when the display is turned back on. The timer is fire-and-forget — there is no read-back characteristic, so the iOS app tracks the countdown locally from when it sent the command.
+Limitations: RAM-only (a power cycle clears it). If `power off` straddles the expiry moment, the end animation plays late when the display is turned back on. The timer is fire-and-forget — there is no read-back characteristic, so the iOS app tracks the countdown locally from when it sent the command.
 
 ## Boot sequence (`setup()`)
 
