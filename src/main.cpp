@@ -1973,6 +1973,11 @@ void applyPendingStatus() {
     statusExpiresAt = target;
     Serial.printf("BLE status: \"%s\" for %lus\n", activeStatusText, secs);
   }
+  // A new text sign takes over the override slot from any running timer.
+  if (timerPhase != TIMER_OFF) {
+    timerPhase = TIMER_OFF;
+    Serial.println("BLE status: new sign cancels active timer");
+  }
   invalidateStatusRender();
   display.displayClear();
 
@@ -2235,6 +2240,7 @@ void applyPendingCmd() {
 
     activeStatusText[0] = '\0';
     statusExpiresAt = 0;
+    timerPhase = TIMER_OFF;  // drop any countdown so reset lands cleanly in setup
     invalidateStatusRender();
     stockCount = 0;
     weatherCount = 0;
@@ -2510,7 +2516,9 @@ void loop() {
     return;
   }
 
-  if (checkStatusForRender()) {
+  if (timerPhase != TIMER_OFF) {
+    tickTimer();
+  } else if (checkStatusForRender()) {
     tickActiveStatus();
   } else if (currentMode == MODE_IDLE) {
     tickIdle();
