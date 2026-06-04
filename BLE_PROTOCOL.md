@@ -58,6 +58,8 @@ Write-only.
 - `reset` — clear NVS, revert to `config.h` defaults (also clears WiFi, API key, any active sign, and the PIN — full reconfiguration needed after; a new PIN is generated and shown in setup mode).
 - `pin-enforce on` — start requiring the Auth PIN for every write.
 - `pin-enforce off` — stop requiring the Auth PIN (default state on a fresh flash).
+- `timer <minutes>` — start a countdown sign (1–99 whole minutes). The matrix shows a live `MM:SS` countdown, then plays an explosion animation and resumes the ambient display. Not network-gated (no cooldown — feels immediate like a sign). Mutually exclusive with the text sign: starting a timer clears any active sign, and writing a new sign cancels a running timer. RAM-only (a power cycle clears it) and fire-and-forget — the device does not report timer state back on read.
+- `timer cancel` — stop a running countdown and resume ambient immediately.
 
 ### WiFi
 `SSID|password` — split on the first `|`. Passwords may contain `|`; SSIDs may not. Updates credentials, saves to NVS, reconnects immediately. Reads return the SSID only.

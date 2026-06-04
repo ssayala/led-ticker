@@ -17,7 +17,7 @@ Press the physical reset button after flashing.
 Single-file ESP32-S3 firmware (`src/main.cpp`) driving a DIYables 4-in-1 MAX7219 matrix. Two orthogonal display layers:
 
 - **Ambient rotation** — stocks (Finnhub), weather (Open-Meteo, geocoded on-device), clock (NTP). Controlled by an enabled-category bitmask.
-- **Active status (sign mode)** — single text string that overrides ambient until expiry/clear. ≤5 chars steady, longer scrolls. No on-device preset library — iOS app holds chips locally.
+- **Active status (sign mode)** — single text string that overrides ambient until expiry/clear. ≤5 chars steady, longer scrolls. No on-device preset library — iOS app holds chips locally. Can also run as a **countdown timer** (`timer <min>` Command verb, 1–99 min) that renders a live `MM:SS`, plays an explosion at zero, then resumes ambient — mutually exclusive with the text sign.
 
 Both layers set independently over BLE. Missing prereqs (WiFi creds, Finnhub key) divert to `MODE_SETUP`. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for mode state, sign mode internals, boot sequence, reset semantics, etc.
 

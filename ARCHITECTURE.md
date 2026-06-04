@@ -69,6 +69,19 @@ Uses `millis()` not `time(NULL)` so timed signs work on no-WiFi devices. Compare
 
 Setting WiFi creds later does **not** auto-restore categories. User must write `mode=all` (or similar) to re-enable ambient. `cmd=reset` clears the inference.
 
+### Timer mode (countdown sign)
+
+A minute-granular countdown that overrides ambient like a sign, entered via the `timer <minutes>` Command verb (1–99, clamped). It rides the same override slot as the text sign but is **mutually exclusive** with it: `startTimer()` clears any active text sign so the post-timer resume goes to ambient, and `applyPendingStatus()` cancels a running timer when a new sign is written.
+
+State (`TimerPhase` + `timerEndAt`, all RAM-only):
+- `TIMER_OFF` — inactive; `loop()` renders sign/ambient normally.
+- `TIMER_RUN` — `tickTimer()` renders `MM:SS` (ceil-to-second so a fresh N-min timer shows `N:00` and the last frame is `0:01`), redrawn only on second change via the `lastShownTimerSec` cache. Uses the static `displayText` path (≤5 chars).
+- `TIMER_EXPLODE` — at zero, `tickExplosion()` plays an expanding-diamond shockwave (Manhattan-distance ring from `EXPLODE_CENTER_*`) plus trailing whole-matrix flashes, frame-stepped via `millis()` like `tickIdle()` (no `delay()`), drawing through `getGraphicObject()->setPoint()`. On completion it calls `resumeAmbient()`.
+
+`loop()` gives the timer top render precedence (`if (timerPhase != TIMER_OFF) tickTimer()` ahead of `checkStatusForRender()`). Timing is `millis()`-based so it works on no-WiFi devices. `cmd=reset` forces `TIMER_OFF`.
+
+Limitations: RAM-only (a power cycle clears it). If `power off` straddles the expiry moment, the explosion plays late when the display is turned back on. The timer is fire-and-forget — there is no read-back characteristic, so the iOS app tracks the countdown locally from when it sent the command.
+
 ## Boot sequence (`setup()`)
 
 ```
