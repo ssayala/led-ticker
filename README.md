@@ -44,7 +44,9 @@ Onboard RGB LED (GPIO 48) lights blue during network fetches. The Freenove board
 
 Carries the Freenove module + a MAX7219 matrix header on a single board. Designed in [EasyEDA](https://easyeda.com/); order via JLCPCB. Sources, mechanical drawing, 3D model, and render are all in [`pcb/`](pcb/).
 
-![PCB 3D render](pcb/pcb.png)
+<p align="center">
+  <img src="pcb/pcb.png" alt="PCB 3D render" width="640">
+</p>
 
 ## Quick start
 
