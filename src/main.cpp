@@ -1338,23 +1338,28 @@ static void seedFireworks() {
 }
 
 static void spawnBurst(int base, int cx, int cy) {
-  // 8 outward directions in x4 fixed-point velocity units.
-  static const int8_t vdx[8] = {4, 3, 0, -3, -4, -3, 0, 3};
-  static const int8_t vdy[8] = {0, -3, -4, -3, 0, 3, 4, 3};
-  for (int i = 0; i < 8; i++) {
+  // 16 outward sparks in x4 fixed-point velocity units: 8 compass directions
+  // at two speeds (outer + inner shell) so the burst fills in rather than
+  // reading as a thin ring.
+  static const int8_t vdx[16] = {4, 3, 0, -3, -4, -3, 0, 3,
+                                  2, 2, 0, -2, -2, -2, 0, 2};
+  static const int8_t vdy[16] = {0, -3, -4, -3, 0, 3, 4, 3,
+                                  0, -2, -2, -2, 0, 2, 2, 2};
+  for (int i = 0; i < 16; i++) {
     Spark& s = sparks[base + i];
     s.x = (int16_t)(cx << 2);
     s.y = (int16_t)(cy << 2);
     s.vx = vdx[i];
     s.vy = vdy[i];
-    s.life = 12;
+    s.life = 14;
   }
 }
 
 static void drawFireworks(MD_MAX72XX* mx, int f) {
+  // Overlap the three bursts (16 sparks each) so more are airborne at once.
   if (f == 0) spawnBurst(0, 8, 2);
-  if (f == 8) spawnBurst(8, 22, 2);
-  if (f == 16) spawnBurst(16, 15, 3);
+  if (f == 6) spawnBurst(16, 22, 2);
+  if (f == 12) spawnBurst(32, 15, 3);
 
   mx->clear();
   for (int i = 0; i < ANIM_FW_PARTICLES; i++) {
@@ -1367,6 +1372,11 @@ static void drawFireworks(MD_MAX72XX* mx, int f) {
     int px = s.x >> 2, py = s.y >> 2;
     if (px >= 0 && px <= IDLE_COL_MAX && py >= 0 && py <= IDLE_ROW_MAX)
       mx->setPoint(py, px, true);
+    // Trailing pixel at the previous position — a short streak reads denser
+    // and gives the sparks motion.
+    int tx = (s.x - s.vx) >> 2, ty = (s.y - s.vy) >> 2;
+    if (tx >= 0 && tx <= IDLE_COL_MAX && ty >= 0 && ty <= IDLE_ROW_MAX)
+      mx->setPoint(ty, tx, true);
   }
 }
 

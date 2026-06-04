@@ -2,23 +2,25 @@
 
 // Default stock symbols — used to seed NVS on first boot.
 // After that, update them via BLE: uv run tools/led.py tickers AAPL MSFT ...
-const char *stockTickers[] = {"AAPL", "GOOG", "MSFT", "AMZN"};
+const char* stockTickers[] = {"AAPL", "GOOG", "MSFT", "AMZN"};
 const int stockTickerCount = sizeof(stockTickers) / sizeof(stockTickers[0]);
 
 // Default weather locations — zip codes or "City, State/Region" strings,
 // resolved to coordinates on-device via Open-Meteo's geocoding API.
 // Used to seed NVS on first boot.
-// After that, update them via BLE: uv run tools/led.py locations "Seattle, WA" 98052 ...
-const char *defaultLocations[] = {"Redmond, WA", "Seattle, WA"};
-const int defaultLocationCount = sizeof(defaultLocations) / sizeof(defaultLocations[0]);
+// After that, update them via BLE: uv run tools/led.py locations "Seattle, WA"
+// 98052 ...
+const char* defaultLocations[] = {"Redmond, WA", "Seattle, WA"};
+const int defaultLocationCount =
+    sizeof(defaultLocations) / sizeof(defaultLocations[0]);
 
 // --- Hardware / pins (edit when porting to a different board) ---
 // HARDWARE_TYPE expands at its use site in main.cpp (which includes
 // MD_MAX72xx.h), so config.h doesn't need that header itself.
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 4
-#define DIN_PIN 6       // MOSI
-#define CLK_PIN 4       // SCK
+#define DIN_PIN 6  // MOSI
+#define CLK_PIN 4  // SCK
 #define CS_PIN 5
 #define RGB_LED_PIN 48  // Freenove onboard WS2812
 // Factory-reset button. BOOT button on most ESP32-S3 devkits is GPIO 0.
@@ -28,12 +30,12 @@ const int defaultLocationCount = sizeof(defaultLocations) / sizeof(defaultLocati
 #define BUTTON_PIN 0
 
 // --- Display behavior ---
-#define SCROLL_SPEED 60       // ms per scroll step (lower = faster)
+#define SCROLL_SPEED 70  // ms per scroll step (lower = faster)
 // Setup-mode scroll runs slower so the BLE device name + PIN are easier to
 // read off the matrix while the user is pairing. Reverts to SCROLL_SPEED
 // once the device leaves MODE_SETUP.
 #define SETUP_SCROLL_SPEED 100
-#define DISPLAY_INTENSITY 2 // 0–15
+#define DISPLAY_INTENSITY 2  // 0–15
 
 // Subtle brightness "breath" on static (non-scrolling) signs. The MAX7219
 // is integer-only with logarithmic perception, so the wide range keeps
@@ -51,10 +53,10 @@ const int defaultLocationCount = sizeof(defaultLocations) / sizeof(defaultLocati
 #define TIMER_MAX_MINUTES 99
 // End animation (non-blocking, frame-stepped like the idle pixel). One of
 // several variants is picked at random when the countdown reaches zero.
-#define ANIM_FRAME_MS 80          // ms per animation frame
+#define ANIM_FRAME_MS 80                         // ms per animation frame
 #define ANIM_CENTER_COL ((8 * MAX_DEVICES) / 2)  // 16 on a 4-module matrix
 #define ANIM_CENTER_ROW 3
-#define ANIM_FW_PARTICLES 24      // fireworks spark pool (3 bursts x 8 sparks)
+#define ANIM_FW_PARTICLES 48  // fireworks spark pool (3 bursts x 16 sparks)
 
 // --- Time / NTP ---
 // POSIX TZ string. Change TIMEZONE if not in US Pacific.
