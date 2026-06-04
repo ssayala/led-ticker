@@ -45,6 +45,16 @@ const int defaultLocationCount = sizeof(defaultLocations) / sizeof(defaultLocati
 #define SIGN_BREATH_MAX_INTENSITY 6
 #define SIGN_BREATH_STEP_MS 400
 
+// --- Timer mode (countdown sign) ---
+// Whole-minute countdown rendered as MM:SS, then an explosion animation.
+#define TIMER_MAX_MINUTES 99
+// Explosion animation (non-blocking, frame-stepped like the idle pixel).
+#define EXPLODE_FRAME_MS 90      // ms per frame
+#define EXPLODE_RING_FRAMES 16   // expanding diamond shockwave frames
+#define EXPLODE_FLASH_FRAMES 6   // trailing whole-matrix on/off flashes
+#define EXPLODE_CENTER_COL ((8 * MAX_DEVICES) / 2)  // 16 on a 4-module matrix
+#define EXPLODE_CENTER_ROW 3
+
 // --- Time / NTP ---
 // POSIX TZ string. Change TIMEZONE if not in US Pacific.
 // The NYSE market-hours check in isMarketOpen() assumes the device clock is
