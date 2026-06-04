@@ -1269,7 +1269,7 @@ static int lastShownTimerSec = -1;     // redraw cache (avoid per-tick repaint)
 // End-of-timer animation: one variant is chosen at random (esp_random) when
 // the countdown reaches zero. All are frame-stepped (no delay()) and finish
 // by calling resumeAmbient(). See tickEndAnim() and the draw* helpers.
-enum EndAnim { ANIM_FIREWORKS, ANIM_SONAR, ANIM_TIME_POP, ANIM_SPARKLE, ANIM_COUNT };
+enum EndAnim { ANIM_FIREWORKS, ANIM_SONAR, ANIM_SPARKLE, ANIM_COUNT };
 static EndAnim endAnim = ANIM_FIREWORKS;
 static int animFrame = -1;             // -1 = needs first paint
 static unsigned long animStepMs = 0;
@@ -1306,7 +1306,6 @@ static int animTotalFrames(EndAnim a) {
   switch (a) {
     case ANIM_FIREWORKS: return 30;
     case ANIM_SONAR:     return 26;
-    case ANIM_TIME_POP:  return 26;
     default:             return 18;  // ANIM_SPARKLE
   }
 }
@@ -1394,26 +1393,6 @@ static void drawSonar(MD_MAX72XX* mx, int f) {
   display.setIntensity(level);
 }
 
-// --- Variant: "TIME!" then pop ---
-// Blink the word (3 on/off cycles), then a short shockwave burst.
-static void drawTimePop(MD_MAX72XX* mx, int f) {
-  const int blinkFrames = 16;
-  if (f < blinkFrames) {
-    bool on = (f / 3) % 2 == 0;  // ~3 frames on, ~3 off
-    if (on) {
-      display.setIntensity(DISPLAY_INTENSITY);
-      display.displayText("TIME!", PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
-      display.displayAnimate();
-    } else {
-      display.displayClear();
-    }
-    return;
-  }
-  if (f == blinkFrames) display.displayClear();  // leave Parola, go raw
-  mx->clear();
-  drawRing(mx, f - blinkFrames);
-}
-
 // --- Variant: sparkle confetti ---
 // Random twinkle whose density tapers to nothing.
 static void drawSparkle(MD_MAX72XX* mx, int f) {
@@ -1454,7 +1433,6 @@ static void tickEndAnim() {
   switch (endAnim) {
     case ANIM_FIREWORKS: drawFireworks(mx, animFrame); break;
     case ANIM_SONAR:     drawSonar(mx, animFrame); break;
-    case ANIM_TIME_POP:  drawTimePop(mx, animFrame); break;
     default:             drawSparkle(mx, animFrame); break;  // ANIM_SPARKLE
   }
 }
