@@ -2,6 +2,10 @@
 
 Desk sign + ambient ticker built on an ESP32-S3 and a DIYables 4-in-1 MAX7219 LED matrix. Rotates stocks, weather, and a clock; flips to a steady sign ("BUSY", "FOCUS", "ON AIR") on demand with an optional auto-clear timer.
 
+<p align="center">
+  <img src="assets/esp32-led.png" alt="ESP32-S3 driving a 4-in-1 MAX7219 LED matrix" width="640">
+</p>
+
 ## Features
 
 - **Sign mode** — one-tap status text, optional auto-clear timer, overrides the ambient rotation while active. Can also run as a **countdown timer** (1–99 min) that shows a live `MM:SS` on the matrix, plays a random animation (fireworks, sonar, or sparkle) at zero, then resumes ambient.
