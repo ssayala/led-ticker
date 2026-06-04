@@ -330,6 +330,25 @@ def cmd_reload(_args):
     asyncio.run(send(CMD_CHAR_UUID, "reload"))
 
 
+def cmd_timer(args):
+    if not args:
+        print("Usage: led.py timer <minutes 1-99 | cancel>")
+        sys.exit(1)
+    arg = args[0].strip().lower()
+    if arg == "cancel":
+        asyncio.run(send(CMD_CHAR_UUID, "timer cancel"))
+        return
+    try:
+        mins = int(arg)
+    except ValueError:
+        print("ERROR: minutes must be an integer 1-99 (or 'cancel')")
+        sys.exit(1)
+    if not 1 <= mins <= 99:
+        print("ERROR: minutes must be 1-99")
+        sys.exit(1)
+    asyncio.run(send(CMD_CHAR_UUID, f"timer {mins}"))
+
+
 def cmd_reset(_args):
     confirm = input("Reset all NVS data to config.h defaults (also rotates PIN)? [y/N] ")
     if confirm.strip().lower() != "y":
@@ -349,6 +368,7 @@ COMMANDS = {
     "get": cmd_get,
     "reload": cmd_reload,
     "reset": cmd_reset,
+    "timer": cmd_timer,
     "pin": cmd_pin,
     "pin-enforce": cmd_pin_enforce,
 }
@@ -359,6 +379,7 @@ def _print_help():
     print()
     print("  tickers     AAPL MSFT GOOGL          set stock symbols and reload quotes")
     print("  status      [TEXT [MINUTES] | clear] set / clear the active sign (0 min = indefinite)")
+    print("  timer       <minutes 1-99 | cancel>  start/cancel a countdown timer on the LED")
     print("  locations   'Seattle, WA' 98052 ...  set weather locations (zip or city)")
     print("  mode        all | <cat> [<cat> ...]  switch display mode (cat: stocks|weather|clock)")
     print("  power       on | off                 turn display on or off (volatile)")
