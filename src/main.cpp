@@ -1250,6 +1250,118 @@ void tickActiveStatus() {
   display.setIntensity(signBreathLevel);
 }
 
+// --- Timer mode (countdown sign) ---
+// A minute-granular countdown that renders MM:SS, then plays an explosion
+// animation and resumes ambient. Mutually exclusive with the text sign:
+// starting a timer clears any active text sign (so the post-timer resume is
+// to ambient, not back to a stale sign); writing a new text sign cancels a
+// running timer. RAM-only like signs — a power cycle clears it.
+//
+// Phases:
+//   TIMER_OFF     — inactive; loop() renders sign/ambient normally
+//   TIMER_RUN     — counting down; renders MM:SS, redrawn only on second change
+//   TIMER_EXPLODE — countdown hit 0; plays the explosion, then resumeAmbient()
+enum TimerPhase { TIMER_OFF, TIMER_RUN, TIMER_EXPLODE };
+static TimerPhase timerPhase = TIMER_OFF;
+static uint32_t timerEndAt = 0;        // millis() target for 0:00
+static int lastShownTimerSec = -1;     // redraw cache (avoid per-tick repaint)
+static int explodeFrame = -1;          // -1 = needs first paint
+static unsigned long explodeStepMs = 0;
+
+// Cancel any text sign so the timer owns the override slot cleanly and the
+// post-timer resume goes to ambient. Mirrors clearStatus() without resuming.
+static void startTimer(uint32_t minutes) {
+  if (minutes < 1) minutes = 1;
+  if (minutes > TIMER_MAX_MINUTES) minutes = TIMER_MAX_MINUTES;
+  activeStatusText[0] = '\0';
+  statusExpiresAt = 0;
+  invalidateStatusRender();
+  timerEndAt = millis() + minutes * 60UL * 1000UL;
+  lastShownTimerSec = -1;
+  timerPhase = TIMER_RUN;
+  display.displayClear();
+  display.setIntensity(DISPLAY_INTENSITY);
+  Serial.printf("Timer: started for %lu min\n", (unsigned long)minutes);
+}
+
+static void cancelTimer() {
+  timerPhase = TIMER_OFF;
+  resumeAmbient();  // enter*() helpers clear the display on transition
+}
+
+// Expanding diamond shockwave from center, then whole-matrix flashes, then
+// resume. Frame-stepped via millis() like tickIdle() — no delay().
+static void tickExplosion() {
+  MD_MAX72XX* mx = display.getGraphicObject();
+  unsigned long now = millis();
+
+  if (explodeFrame < 0) {
+    display.displayClear();  // reset Parola zones before raw setPoint() use
+    display.setIntensity(DISPLAY_INTENSITY);
+    mx->clear();
+    explodeFrame = 0;
+    explodeStepMs = now;
+  } else {
+    if (now - explodeStepMs < EXPLODE_FRAME_MS) return;
+    explodeStepMs = now;
+    explodeFrame++;
+  }
+
+  const int total = EXPLODE_RING_FRAMES + EXPLODE_FLASH_FRAMES;
+  if (explodeFrame >= total) {
+    timerPhase = TIMER_OFF;
+    resumeAmbient();
+    return;
+  }
+
+  mx->clear();
+  if (explodeFrame < EXPLODE_RING_FRAMES) {
+    int r = explodeFrame;  // ring radius grows one step per frame
+    for (int row = 0; row <= IDLE_ROW_MAX; row++)
+      for (int col = 0; col <= IDLE_COL_MAX; col++) {
+        int d = abs(col - EXPLODE_CENTER_COL) + abs(row - EXPLODE_CENTER_ROW);
+        if (d == r) mx->setPoint(row, col, true);
+      }
+  } else {
+    // Trailing flashes: even relative frame = all on, odd = all off.
+    bool on = ((explodeFrame - EXPLODE_RING_FRAMES) % 2) == 0;
+    if (on)
+      for (int row = 0; row <= IDLE_ROW_MAX; row++)
+        for (int col = 0; col <= IDLE_COL_MAX; col++)
+          mx->setPoint(row, col, true);
+  }
+}
+
+// Render pump for an active timer. Called from loop() with top precedence
+// (timer overrides text sign and ambient) whenever timerPhase != TIMER_OFF.
+void tickTimer() {
+  if (timerPhase == TIMER_EXPLODE) {
+    tickExplosion();
+    return;
+  }
+
+  // TIMER_RUN
+  unsigned long now = millis();
+  int32_t remainMs = (int32_t)(timerEndAt - now);  // wrap-safe signed delta
+  if (remainMs <= 0) {
+    timerPhase = TIMER_EXPLODE;
+    explodeFrame = -1;
+    return;
+  }
+
+  // Ceil to whole seconds so a fresh N-minute timer shows "N:00" and the
+  // last visible value is "0:01" (we switch to explosion at 0).
+  int totalSec = (remainMs + 999) / 1000;
+  if (totalSec == lastShownTimerSec) return;  // redraw only on change
+  lastShownTimerSec = totalSec;
+
+  char buf[6];  // "MM:SS" + NUL, max "99:00"
+  snprintf(buf, sizeof(buf), "%d:%02d", totalSec / 60, totalSec % 60);
+  display.setIntensity(DISPLAY_INTENSITY);
+  display.displayText(buf, PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
+  display.displayAnimate();
+}
+
 // ============================================================================
 // BLE
 // ============================================================================
