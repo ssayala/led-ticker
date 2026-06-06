@@ -314,6 +314,8 @@ code, pre { font-family: var(--mono); }
   transition: color .2s ease, border-color .2s ease;
 }
 .reading a:hover { color: var(--led-soft); border-color: var(--led); }
+/* on phones, drop the label to its own line so the links wrap as a clean group */
+@media (max-width: 540px) { .reading span { flex-basis: 100%; } }
 
 /* ---------- build ---------- */
 .build__grid {
