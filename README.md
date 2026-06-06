@@ -49,3 +49,7 @@ Full walkthrough — wiring, pairing, and `config.h` tuning — in **[Getting st
 - **[Custom PCB](pcb/README.md)** — board sources, render, and ordering.
 - **[iOS app](ios/README.md)** — the companion app.
 - **Versioning** — `FW_VERSION` in [`src/version.h`](src/version.h); release workflow in [`CLAUDE.md`](CLAUDE.md#versioning).
+
+## License
+
+Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md) © Sunil Sayala. Free to build, modify, and share for **noncommercial** use — personal, hobby, research, education. **Commercial use, including selling devices based on this work, is not permitted.** Covers the firmware, the iOS app, and the hardware design files in [`pcb/`](pcb/).
