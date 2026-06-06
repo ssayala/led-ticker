@@ -93,7 +93,7 @@
           <span slot="not-allowed">This page must be served over HTTPS to flash.</span>
         </esp-web-install-button>
       </div>
-      <p class="flash__note">Latest released firmware · ESP32-S3</p>
+      <p class="flash__note">Firmware <span id="fw-version">latest</span> · ESP32-S3</p>
     </div>
 
     <h2>Steps</h2>
@@ -124,5 +124,18 @@
       </nav>
     </div>
   </footer>
+
+  <script>
+    // Show the released firmware version from the manifest, so it stays in
+    // sync with the binaries on the page (CI updates both on each release).
+    fetch('firmware/manifest.json', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (m) {
+        if (m && m.version) {
+          document.getElementById('fw-version').textContent = 'v' + m.version;
+        }
+      })
+      .catch(function () { /* leave the "latest" fallback */ });
+  </script>
 </body>
 </html>

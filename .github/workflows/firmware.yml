@@ -87,14 +87,18 @@ jobs:
           name: firmware-esp32-s3
           path: docs/firmware
 
-      - name: Commit refreshed flasher binaries
+      - name: Refresh flasher binaries + manifest version
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/firmware/*.bin
+          # Sync the manifest version to the tag (v0.4.3 -> 0.4.3) so the
+          # flash page shows the right release number.
+          version="${GITHUB_REF_NAME#v}"
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${version}\"/" docs/firmware/manifest.json
+          git add docs/firmware/*.bin docs/firmware/manifest.json
           if git diff --cached --quiet; then
-            echo "no binary changes"; exit 0
+            echo "no changes"; exit 0
           fi
           # [skip ci] so this push doesn't re-trigger the firmware workflow.
-          git commit -m "ci: refresh web-flasher firmware to ${GITHUB_REF_NAME} [skip ci]"
+          git commit -m "ci: refresh web flasher to ${GITHUB_REF_NAME} [skip ci]"
           git push origin HEAD:main
