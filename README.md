@@ -2,7 +2,7 @@
 
 Desk sign + ambient ticker built on an ESP32-S3 and a DIYables 4-in-1 MAX7219 LED matrix. Rotates stocks, weather, and a clock; flips to a steady sign ("BUSY", "FOCUS", "ON AIR") on demand with an optional auto-clear timer.
 
-🔗 **[Project page →](https://ssayala.github.io/esp32-led-simple/)**
+[![Project page](https://img.shields.io/badge/Project%20Page-%E2%86%97-FF2F2F?style=for-the-badge&labelColor=FF2F2F)](https://ssayala.github.io/esp32-led-simple/)
 
 <p align="center">
   <img src="assets/device-sketch.jpg" alt="Line-art illustration of the LED Ticker — a 4-in-1 LED matrix in a bracket, wired to an ESP32-S3 board" width="720">
