@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0b" />
   <title>LED Ticker — a desk sign & ambient ticker on an ESP32-S3</title>
   <meta name="description" content="A desk sign and ambient ticker built on an ESP32-S3 and a 4-in-1 MAX7219 LED matrix. Live stocks, weather, and a clock; a one-tap status sign; configured entirely over Bluetooth with an iOS companion app." />
 
@@ -34,6 +35,8 @@
       <span class="nav__dot" aria-hidden="true"></span>
       LED&nbsp;Ticker
     </a>
+    <input type="checkbox" id="nav-toggle" class="nav__toggle" hidden />
+    <label class="nav__burger" for="nav-toggle" role="button" aria-label="Toggle navigation menu"><span></span></label>
     <nav class="nav__links">
       <a href="#features">Features</a>
       <a href="#tech">How it works</a>
@@ -245,6 +248,15 @@ pio run -t upload   <span class="c">// build &amp; flash over USB-C</span></code
   </footer>
 
   <script>
+    // Close the mobile menu after tapping a link.
+    (function () {
+      var t = document.getElementById('nav-toggle');
+      if (!t) return;
+      document.querySelectorAll('.nav__links a').forEach(function (a) {
+        a.addEventListener('click', function () { t.checked = false; });
+      });
+    })();
+
     // Staggered scroll reveals — respects reduced-motion.
     (function () {
       var els = document.querySelectorAll('.reveal');

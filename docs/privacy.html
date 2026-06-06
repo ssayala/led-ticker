@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0b" />
   <title>Privacy Policy — LED Ticker</title>
   <meta name="description" content="The LED Ticker iOS app collects no personal data: no analytics, no accounts, no third-party SDKs. Settings stay on your device or go only to your own hardware over Bluetooth." />
 
@@ -72,6 +73,8 @@
       <span class="nav__dot" aria-hidden="true"></span>
       LED&nbsp;Ticker
     </a>
+    <input type="checkbox" id="nav-toggle" class="nav__toggle" hidden />
+    <label class="nav__burger" for="nav-toggle" role="button" aria-label="Toggle navigation menu"><span></span></label>
     <nav class="nav__links">
       <a href="index.html">Home</a>
       <a class="nav__gh" href="https://github.com/ssayala/esp32-led-simple" target="_blank" rel="noopener">GitHub ↗</a>
@@ -117,5 +120,16 @@
       </nav>
     </div>
   </footer>
+
+  <script>
+    // Close the mobile menu after tapping a link.
+    (function () {
+      var t = document.getElementById('nav-toggle');
+      if (!t) return;
+      document.querySelectorAll('.nav__links a').forEach(function (a) {
+        a.addEventListener('click', function () { t.checked = false; });
+      });
+    })();
+  </script>
 </body>
 </html>
