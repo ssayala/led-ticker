@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — LED Ticker</title>
+  <meta name="description" content="The LED Ticker iOS app collects no personal data: no analytics, no accounts, no third-party SDKs. Settings stay on your device or go only to your own hardware over Bluetooth." />
+
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="assets/favicon-180.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+
+  <style>
+    /* Privacy-page-only prose styling, on top of the shared theme. */
+    .legal {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: clamp(48px, 9vw, 96px) var(--pad) clamp(64px, 10vw, 120px);
+    }
+    .legal__updated {
+      font-family: var(--mono); font-size: .82rem; letter-spacing: .04em;
+      color: var(--ink-dim); margin: 14px 0 36px;
+    }
+    .legal h1 {
+      font-family: var(--display); font-weight: 800;
+      font-size: clamp(2.1rem, 6vw, 3.2rem); line-height: 1.04; letter-spacing: -.02em;
+    }
+    .legal__lead { color: var(--ink); font-size: 1.12rem; margin-bottom: 28px; }
+    .legal ul { list-style: none; display: grid; gap: 16px; margin: 0 0 32px; }
+    .legal li {
+      position: relative; padding-left: 26px; color: var(--ink-mid);
+      font-size: 1.02rem; line-height: 1.6;
+    }
+    .legal li::before {
+      content: ""; position: absolute; left: 0; top: .55em;
+      width: 8px; height: 8px; border-radius: 2px;
+      background: var(--led); box-shadow: var(--glow);
+    }
+    .legal li strong, .legal__lead strong { color: var(--ink); font-weight: 600; }
+    .legal code {
+      font-family: var(--mono); font-size: .85em; color: var(--led-soft);
+      background: rgba(255,47,47,.08); padding: 1px 6px; border-radius: 5px;
+    }
+    .legal__rule { border: none; border-top: 1px solid var(--line-soft); margin: 40px 0 32px; }
+    .legal h2 {
+      font-family: var(--display); font-weight: 700;
+      font-size: 1.4rem; margin-bottom: 12px;
+    }
+    .legal p { color: var(--ink-mid); }
+    .legal a {
+      color: var(--led-soft); border-bottom: 1px solid var(--led-deep); padding-bottom: 1px;
+      transition: border-color .2s ease;
+    }
+    .legal a:hover { border-color: var(--led); }
+    .legal__back {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: var(--mono); font-size: .85rem; color: var(--ink-mid);
+      margin-top: 44px; border-bottom: none !important;
+    }
+    .legal__back:hover { color: var(--led-soft); }
+  </style>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="nav__brand" href="index.html">
+      <span class="nav__dot" aria-hidden="true"></span>
+      LED&nbsp;Ticker
+    </a>
+    <nav class="nav__links">
+      <a href="index.html">Home</a>
+      <a class="nav__gh" href="https://github.com/ssayala/esp32-led-simple" target="_blank" rel="noopener">GitHub ↗</a>
+    </nav>
+  </header>
+
+  <main class="legal">
+    <p class="kicker">/ ios app</p>
+    <h1>Privacy Policy</h1>
+    <p class="legal__updated">Last updated: 2026-05-16</p>
+
+    <p class="legal__lead">This app collects <strong>no personal data</strong>. Specifically:</p>
+
+    <ul>
+      <li><strong>No analytics, no telemetry, no crash reporting.</strong> Nothing about your use of the app is sent anywhere.</li>
+      <li><strong>No account, no sign-in.</strong></li>
+      <li><strong>No third-party SDKs.</strong> The app talks only to (a) your LED Ticker hardware over Bluetooth Low Energy, and (b) the public Open-Meteo geocoding/weather API and Finnhub stock-quotes API — and those calls are made by <strong>your LED Ticker device</strong>, not by this app. The app never makes outbound network requests on its own.</li>
+      <li><strong>Bluetooth permission</strong> is used solely to discover and connect to your LED Ticker device. The list of devices you've paired with is stored only on your phone (in <code>UserDefaults</code>) and is never transmitted off-device.</li>
+      <li><strong>WiFi credentials and your Finnhub API key</strong>, if you set them, are cached in your phone's <code>UserDefaults</code> and sent to your LED Ticker over Bluetooth so it can do its own fetches. The WiFi password is not persisted on the phone.</li>
+      <li><strong>The "preset chips"</strong> on the Sign tab are stored only on your phone in <code>UserDefaults</code>. They are not synced anywhere.</li>
+    </ul>
+
+    <p>If you delete the app, all the above is removed from your device.</p>
+
+    <hr class="legal__rule" />
+
+    <h2>Contact</h2>
+    <p>If you have questions about this policy, open an issue at <a href="https://github.com/ssayala/esp32-led-simple/issues" target="_blank" rel="noopener">github.com/ssayala/esp32-led-simple/issues</a>.</p>
+
+    <a class="legal__back" href="index.html">← Back to the project page</a>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__inner">
+      <div class="footer__brand">
+        <span class="nav__dot" aria-hidden="true"></span>
+        LED Ticker
+      </div>
+      <nav class="footer__links">
+        <a href="index.html">Home</a>
+        <a href="https://github.com/ssayala/esp32-led-simple" target="_blank" rel="noopener">Repository</a>
+        <a href="https://github.com/ssayala/esp32-led-simple/blob/main/BLE_PROTOCOL.md" target="_blank" rel="noopener">BLE protocol</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
