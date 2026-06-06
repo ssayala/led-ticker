@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0a0b" />
-  <title>LED Ticker — a desk sign & ambient ticker on an ESP32-S3</title>
-  <meta name="description" content="A desk sign and ambient ticker built on an ESP32-S3 and a 4-in-1 MAX7219 LED matrix. Live stocks, weather, and a clock; a one-tap status sign; configured entirely over Bluetooth with an iOS companion app." />
+  <title>LED Ticker — a desk sign & ambient ticker</title>
+  <meta name="description" content="A desk sign and ambient ticker built on an ESP32-S3 microcontroller and a MAX7219 LED matrix. Live stocks, weather, and a clock; a one-tap status sign; configured entirely over Bluetooth with an iOS companion app." />
 
   <!-- Open Graph / LinkedIn card -->
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="LED Ticker — ESP32-S3 desk sign & ambient ticker" />
-  <meta property="og:description" content="Live stocks, weather, and a clock. A one-tap status sign. Configured over Bluetooth, with an iOS companion app. Custom firmware + PCB." />
+  <meta property="og:title" content="LED Ticker — a desk sign & ambient ticker" />
+  <meta property="og:description" content="Live stocks, weather, and a clock. A one-tap status sign. Configured over Bluetooth, with an iOS companion app." />
   <meta property="og:image" content="https://ledticker.app/assets/device.jpeg" />
   <meta property="og:url" content="https://ledticker.app/" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -55,7 +55,7 @@
         <p class="hero__lede">
           An ambient ticker that rotates live stocks, weather, and the time.
           It can flip to a one-tap status sign whenever you need it. Built on an ESP32-S3
-          and a 4-in-1 MAX7219 LED matrix, configured over Bluetooth from an iOS app.
+          microcontroller and a 4-in-1 MAX7219 LED matrix, configured over Bluetooth from an iOS app.
         </p>
         <div class="hero__cta">
           <a class="btn btn--primary" href="https://github.com/ssayala/esp32-led-simple" target="_blank" rel="noopener">View on GitHub</a>
@@ -102,8 +102,7 @@
         <span class="card__ix">05</span>
         <h3>iOS companion</h3>
         <p>A native app: multi-device switcher, preset chip grid, and a Display tab with per-category toggles plus a master on/off.</p>
-        <!-- TODO before publishing the page: replace id0000000000 with the real App Store ID from App Store Connect. -->
-        <a class="appstore" href="https://apps.apple.com/app/id0000000000" target="_blank" rel="noopener" aria-label="Download on the App Store">
+        <a class="appstore" href="https://apps.apple.com/app/id6772027776" target="_blank" rel="noopener" aria-label="Download on the App Store">
           <svg class="appstore__svg" width="150" height="50" viewBox="0 0 150 50" role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
             <rect x="0.5" y="0.5" width="149" height="49" rx="9" fill="#000" stroke="rgba(255,255,255,.28)"/>
             <g transform="translate(15,13) scale(0.0235)" fill="#fff">
@@ -132,28 +131,28 @@
 
     <div class="specs">
       <div class="spec reveal">
-        <h3>Dual-core, no blocking</h3>
-        <p>A fetch task pinned to Core&nbsp;0 pulls quotes and weather while Core&nbsp;1 runs a cooperative <code>loop()</code> — no <code>delay()</code>, no jank on the display.</p>
+        <h3>Dual-core, never blocks</h3>
+        <p>A fetch task pinned to Core&nbsp;0 pulls quotes and weather while Core&nbsp;1 runs a cooperative <code>loop()</code> — no <code>delay()</code>. The cores hand off through volatile flags, so a network stall never stutters the display.</p>
       </div>
       <div class="spec reveal" style="--d:.06s">
-        <h3>BLE is the contract</h3>
-        <p>Wi-Fi, API keys, tickers, locations, mode, and the active sign are all set over a documented GATT service. The CLI and the iOS app speak the same protocol.</p>
+        <h3>One protocol, many clients</h3>
+        <p>Wi-Fi, API keys, tickers, locations, mode, the active sign — all configured over one documented BLE GATT service. The iOS app and the Python CLI are just two clients of the same contract; writes are queued out of the radio callback and applied by the main loop.</p>
       </div>
       <div class="spec reveal" style="--d:.12s">
-        <h3>Pairing &amp; PIN</h3>
-        <p>Bonded links via passkey entry, with a fallback PIN characteristic for non-pairing clients. Five wrong tries trigger a lockout.</p>
+        <h3>A prioritized render stack</h3>
+        <p>Every frame, the loop draws by precedence: a countdown or status sign overrides everything, then the idle animation, then a steady-clock fast path, then the scrolling rotation. One small state machine decides what's on the matrix.</p>
       </div>
       <div class="spec reveal" style="--d:.18s">
-        <h3>Persisted in NVS</h3>
-        <p>Config survives power cycles in flash; fetched data and the active sign stay in RAM, so a reboot cleanly resumes the ambient rotation.</p>
+        <h3>Degrades gracefully</h3>
+        <p>Missing Wi-Fi or an API key? It falls into a setup mode that scrolls its own name and PIN. Categories without data yet show <code>Loading…</code>, and signs and timers run off <code>millis()</code>, so they work with no network at all.</p>
       </div>
       <div class="spec reveal" style="--d:.24s">
-        <h3>On-device geocoding</h3>
-        <p>Type a city or ZIP and the ESP32 resolves it to coordinates via Open-Meteo — no companion server, no phone in the loop.</p>
+        <h3>Flash vs RAM, on purpose</h3>
+        <p>Config lives in flash and survives power cycles; fetched quotes, weather, and the active sign stay in RAM. A reboot drops the transient stuff and cleanly resumes your ambient rotation.</p>
       </div>
       <div class="spec reveal" style="--d:.3s">
         <h3>One button, two jobs</h3>
-        <p>GPIO&nbsp;0 is the bootloader strap at power-on but a plain button at runtime: hold it 10&nbsp;s and the matrix counts down before wiping all config and forgetting every BLE bond.</p>
+        <p>The BOOT button is the bootloader strap at power-on, but an ordinary one at runtime: hold it 10&nbsp;s and the matrix counts down before wiping all config and forgetting every BLE bond.</p>
       </div>
     </div>
 
@@ -213,8 +212,8 @@
           <pre><code>git clone https://github.com/ssayala/esp32-led-simple
 cd esp32-led-simple
 pio run -t upload   <span class="c">// build &amp; flash over USB-C</span></code></pre>
-          <p class="flash__note">First boot scrolls the BLE name and a 6-digit PIN on the matrix. Pair from the iOS app or the Python CLI, set your Wi-Fi, and you're live. Full walkthrough in the <a href="https://github.com/ssayala/esp32-led-simple/blob/main/GETTING_STARTED.md" target="_blank" rel="noopener">Getting started guide</a>.</p>
-          <p class="flash__note">No toolchain? <a href="flash.html">Flash it from your browser →</a> (Chrome/Edge, over USB).</p>
+          <p class="flash__note">First boot scrolls the BLE name and a 6-digit PIN. Pair from the iOS app or the Python CLI, set your Wi-Fi, and you're live. Full walkthrough in the <a href="https://github.com/ssayala/esp32-led-simple/blob/main/GETTING_STARTED.md" target="_blank" rel="noopener">Getting started guide</a>.</p>
+          <p class="flash__note">No toolchain? <a href="flash.html">Flash it from your browser</a>&nbsp;with Chrome, over USB.</p>
         </div>
       </div>
 
