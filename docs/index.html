@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LED Matrix Ticker — a desk sign & ambient ticker on an ESP32-S3</title>
+  <meta name="description" content="An open-source desk sign and ambient ticker built on an ESP32-S3 and a 4-in-1 MAX7219 LED matrix. Live stocks, weather, and a clock; a one-tap status sign; configured entirely over Bluetooth with an iOS companion app." />
+
+  <!-- Open Graph / LinkedIn card -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="LED Matrix Ticker — ESP32-S3 desk sign & ambient ticker" />
+  <meta property="og:description" content="Live stocks, weather, and a clock. A one-tap status sign. Configured over Bluetooth, with an iOS companion app. Open-source firmware + custom PCB." />
+  <meta property="og:image" content="https://ssayala.github.io/esp32-led-simple/assets/device.jpeg" />
+  <meta property="og:url" content="https://ssayala.github.io/esp32-led-simple/" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LED Matrix Ticker — ESP32-S3 desk sign & ambient ticker" />
+  <meta name="twitter:description" content="Live stocks, weather, and a clock. A one-tap status sign. Configured over Bluetooth, with an iOS companion app." />
+  <meta name="twitter:image" content="https://ssayala.github.io/esp32-led-simple/assets/device.jpeg" />
+
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="assets/favicon-180.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- ============ NAV ============ -->
+  <header class="nav">
+    <a class="nav__brand" href="#top">
+      <span class="nav__dot" aria-hidden="true"></span>
+      LED&nbsp;Matrix&nbsp;Ticker
+    </a>
+    <nav class="nav__links">
+      <a href="#features">Features</a>
+      <a href="#tech">How it works</a>
+      <a href="#build">Build one</a>
+      <a class="nav__gh" href="https://github.com/ssayala/esp32-led-simple" target="_blank" rel="noopener">GitHub ↗</a>
+    </nav>
+  </header>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="top">
+    <div class="hero__glow" aria-hidden="true"></div>
+    <div class="hero__inner">
+      <div class="hero__copy reveal">
+        <p class="eyebrow"><span class="eyebrow__live">●</span> ON&nbsp;AIR · open hardware</p>
+        <h1 class="hero__title">A desk sign<br />that <span class="glow-text">never</span> sleeps.</h1>
+        <p class="hero__lede">
+          An ambient ticker that rotates live stocks, weather, and the time —
+          then flips to a one-tap status sign on demand. Built on an ESP32-S3
+          and a 4-in-1 MAX7219 LED matrix. Configured entirely over Bluetooth.
+        </p>
+        <div class="hero__cta">
+          <a class="btn btn--primary" href="https://github.com/ssayala/esp32-led-simple" target="_blank" rel="noopener">View on GitHub</a>
+          <a class="btn btn--ghost" href="#build">Build one&nbsp;↓</a>
+        </div>
+        <ul class="badges" aria-label="Project at a glance">
+          <li>ESP32-S3</li>
+          <li>BLE control</li>
+          <li>iOS app</li>
+          <li>Custom PCB</li>
+        </ul>
+      </div>
+      <figure class="hero__shot reveal" style="--d:.15s">
+        <img src="assets/device.jpeg" alt="The LED Matrix Ticker on a desk, its red dot-matrix display reading ON AIR, wired to an ESP32-S3 board over a braided USB-C cable." width="896" height="869" />
+        <figcaption><span>LED-Ticker-AB12</span> · live on a desk</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ FEATURES ============ -->
+  <section class="section" id="features">
+    <div class="section__head reveal">
+      <p class="kicker">/ what it does</p>
+      <h2>Two display layers, one little box.</h2>
+      <p class="section__sub">An ambient rotation you set and forget, and an active sign that takes over the moment you need it.</p>
+    </div>
+
+    <div class="grid">
+      <article class="card reveal">
+        <span class="card__ix">01</span>
+        <h3>Sign mode</h3>
+        <p>One-tap status text — <code>BUSY</code>, <code>FOCUS</code>, <code>ON AIR</code> — overrides the ambient rotation, with an optional auto-clear timer.</p>
+      </article>
+      <article class="card reveal" style="--d:.05s">
+        <span class="card__ix">02</span>
+        <h3>Countdown timer</h3>
+        <p>A live <code>MM:SS</code> countdown from 1–99 min, capped with a random animation — fireworks, sonar, sparkle — then back to ambient.</p>
+      </article>
+      <article class="card reveal" style="--d:.1s">
+        <span class="card__ix">03</span>
+        <h3>Live data</h3>
+        <p>Stock quotes from Finnhub and multi-location weather from Open-Meteo, geocoded on-device. No phone tether required.</p>
+      </article>
+      <article class="card reveal" style="--d:.15s">
+        <span class="card__ix">04</span>
+        <h3>12-hour clock</h3>
+        <p>Steady <code>H:MM</code> when shown alone, scrolls <code>H:MM&nbsp;AM/PM</code> when mixed in. NTP-synced, timezone-aware.</p>
+      </article>
+      <article class="card reveal" style="--d:.2s">
+        <span class="card__ix">05</span>
+        <h3>iOS companion</h3>
+        <p>A native app: multi-device switcher, preset chip grid, and a Display tab with per-category toggles plus a master on/off.</p>
+        <!-- TODO before publishing the page: replace id0000000000 with the real App Store ID from App Store Connect. -->
+        <a class="appstore" href="https://apps.apple.com/app/id0000000000" target="_blank" rel="noopener" aria-label="Download on the App Store">
+          <svg class="appstore__svg" width="150" height="50" viewBox="0 0 150 50" role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0.5" y="0.5" width="149" height="49" rx="9" fill="#000" stroke="rgba(255,255,255,.28)"/>
+            <g transform="translate(15,13) scale(0.0235)" fill="#fff">
+              <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105.6-57-155.5-127C46.7 790.7 0 663 0 541.8c0-194.4 126.4-297.5 250.8-297.5 66.1 0 121.2 43.4 162.7 43.4 39.5 0 101.1-46 176.3-46 28.5 0 130.9 2.6 198.3 99.2zm-234-181.5c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/>
+            </g>
+            <text x="46" y="20" fill="#fff" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="8.5" letter-spacing=".2">Download on the</text>
+            <text x="45" y="39" fill="#fff" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="18" font-weight="500" letter-spacing="-.3">App Store</text>
+          </svg>
+        </a>
+      </article>
+      <article class="card reveal" style="--d:.25s">
+        <span class="card__ix">06</span>
+        <h3>PIN-gated BLE</h3>
+        <p>Every write is gated on a 6-digit PIN. iOS uses the native pairing dialog; the PIN rotates on factory reset.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============ TECH ============ -->
+  <section class="section section--tech" id="tech">
+    <div class="section__head reveal">
+      <p class="kicker">/ under the hood</p>
+      <h2>How it works.</h2>
+      <p class="section__sub">Single-file firmware, deliberately. Here's what's holding it together.</p>
+    </div>
+
+    <div class="specs">
+      <div class="spec reveal">
+        <h3>Dual-core, no blocking</h3>
+        <p>A fetch task pinned to Core&nbsp;0 pulls quotes and weather while Core&nbsp;1 runs a cooperative <code>loop()</code> — no <code>delay()</code>, no jank on the display.</p>
+      </div>
+      <div class="spec reveal" style="--d:.06s">
+        <h3>BLE is the contract</h3>
+        <p>WiFi, API keys, tickers, locations, mode, and the active sign are all set over a documented GATT service. The CLI and the iOS app speak the same protocol.</p>
+      </div>
+      <div class="spec reveal" style="--d:.12s">
+        <h3>Secure by default</h3>
+        <p>Bonded links via passkey entry, with a fallback PIN characteristic for non-pairing clients. Five wrong tries buys a lockout.</p>
+      </div>
+      <div class="spec reveal" style="--d:.18s">
+        <h3>Persisted in NVS</h3>
+        <p>Config survives power cycles in flash; fetched data and the active sign stay in RAM, so a reboot cleanly resumes the ambient rotation.</p>
+      </div>
+    </div>
+
+    <div class="reading reveal">
+      <span>Go deeper:</span>
+      <a href="https://github.com/ssayala/esp32-led-simple/blob/main/ARCHITECTURE.md" target="_blank" rel="noopener">ARCHITECTURE.md</a>
+      <a href="https://github.com/ssayala/esp32-led-simple/blob/main/BLE_PROTOCOL.md" target="_blank" rel="noopener">BLE_PROTOCOL.md</a>
+      <a href="https://github.com/ssayala/esp32-led-simple/tree/main/ios" target="_blank" rel="noopener">iOS app</a>
+    </div>
+  </section>
+
+  <!-- ============ BUILD ============ -->
+  <section class="section section--build" id="build">
+    <div class="section__head reveal">
+      <p class="kicker">/ make your own</p>
+      <h2>Build one.</h2>
+      <p class="section__sub">Two off-the-shelf modules, a custom PCB, and a 3D-printed bracket. Everything you need is in the repo.</p>
+    </div>
+
+    <div class="build__grid">
+      <div class="bom reveal">
+        <table>
+          <thead>
+            <tr><th>Part</th><th>What</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>MCU board</td>
+              <td>Freenove ESP32-S3-WROOM (FNK0099) — onboard NeoPixel, native USB-C</td>
+              <td><a href="https://store.freenove.com/products/fnk0099" target="_blank" rel="noopener">Buy ↗</a></td>
+            </tr>
+            <tr>
+              <td>Display</td>
+              <td>DIYables 4-in-1 MAX7219 8×8 LED matrix</td>
+              <td><a href="https://diyables.io/products/dot-matrix-display-fc16-4-in-1-32x4-led" target="_blank" rel="noopener">Buy ↗</a></td>
+            </tr>
+            <tr>
+              <td>PCB</td>
+              <td>Custom board carrying both modules — EasyEDA sources, order via JLCPCB</td>
+              <td><a href="https://github.com/ssayala/esp32-led-simple/tree/main/pcb" target="_blank" rel="noopener">Files ↗</a></td>
+            </tr>
+            <tr>
+              <td>Bracket</td>
+              <td>3D-printed bracket (STL included)</td>
+              <td><a href="https://github.com/ssayala/esp32-led-simple/blob/main/assets/bracket.stl" target="_blank" rel="noopener">STL ↗</a></td>
+            </tr>
+            <tr>
+              <td>Cable</td>
+              <td>USB-C for power + flashing</td>
+              <td><span class="muted">any</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="flash">
+          <p class="flash__label">// then flash it</p>
+          <pre><code>git clone https://github.com/ssayala/esp32-led-simple
+cd esp32-led-simple
+pio run -t upload   <span class="c">// build &amp; flash over USB-C</span></code></pre>
+          <p class="flash__note">First boot scrolls the BLE name and a 6-digit PIN on the matrix. Pair from the iOS app or the Python CLI, set your WiFi, and you're live. Full walkthrough in the <a href="https://github.com/ssayala/esp32-led-simple#quick-start" target="_blank" rel="noopener">Quick start</a>.</p>
+        </div>
+      </div>
+
+      <figure class="pcb reveal" style="--d:.1s">
+        <img src="assets/pcb.png" alt="3D render of the custom PCB that carries the Freenove module and the MAX7219 matrix header on a single board." loading="lazy" />
+        <figcaption>The custom PCB — designed in EasyEDA, fabbed at JLCPCB.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <div class="footer__inner">
+      <div class="footer__brand">
+        <span class="nav__dot" aria-hidden="true"></span>
+        LED Matrix Ticker
+      </div>
+      <nav class="footer__links">
+        <a href="https://github.com/ssayala/esp32-led-simple" target="_blank" rel="noopener">Repository</a>
+        <a href="https://github.com/ssayala/esp32-led-simple/blob/main/BLE_PROTOCOL.md" target="_blank" rel="noopener">BLE protocol</a>
+        <a href="https://github.com/ssayala/esp32-led-simple/tree/main/ios" target="_blank" rel="noopener">iOS app</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+    // Staggered scroll reveals — respects reduced-motion.
+    (function () {
+      var els = document.querySelectorAll('.reveal');
+      if (!('IntersectionObserver' in window) ||
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        els.forEach(function (e) { e.classList.add('is-in'); });
+        return;
+      }
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (en.isIntersecting) { en.target.classList.add('is-in'); io.unobserve(en.target); }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+      els.forEach(function (e) { io.observe(e); });
+    })();
+  </script>
+</body>
+</html>

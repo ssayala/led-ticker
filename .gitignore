@@ -9,5 +9,7 @@ ios/DerivedData/
 ios/Signing.local.xcconfig
 ios/store/
 .DS_Store
-docs/
+docs/.preview/
+docs/superpowers/
+assets/features-hires.png
 .antigravitycli/

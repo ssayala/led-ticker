@@ -66,3 +66,11 @@ Service UUID `4fafc201-1fb5-459e-8fcc-c5c9c331914b`. Full UUID/payload reference
 ## Versioning
 
 `FW_VERSION` in `src/version.h`. Bumped manually, tagged in git. Surfaced via serial banner, `[hb]` heartbeat prefix, and read-only Version BLE characteristic. iOS treats `.version` as optional for back-compat.
+
+Per-release workflow:
+
+1. Bump `FW_VERSION` in `src/version.h`.
+2. Commit (`git commit -am "release v0.3.0"`).
+3. Tag the commit (`git tag v0.3.0`) so the string in the code and the tag in history point at the same commit — `git checkout v0.3.0` rebuilds the exact firmware on a board.
+4. `pio run -t upload`, reset the board, confirm the new version on Serial or in the iOS app.
+5. `git push && git push --tags` once you're happy.

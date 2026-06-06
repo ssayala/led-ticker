@@ -2,20 +2,26 @@
 
 Desk sign + ambient ticker built on an ESP32-S3 and a DIYables 4-in-1 MAX7219 LED matrix. Rotates stocks, weather, and a clock; flips to a steady sign ("BUSY", "FOCUS", "ON AIR") on demand with an optional auto-clear timer.
 
+🔗 **[Project page →](https://ssayala.github.io/esp32-led-simple/)**
+
 <p align="center">
-  <img src="assets/features.png" alt="LED Matrix Ticker features: sign mode, countdown timer, live stocks and weather, iOS companion app, and factory reset" width="480">
+  <img src="assets/device.jpeg" alt="The LED Matrix Ticker on a desk, its red dot-matrix display reading ON AIR, wired to an ESP32-S3 over a braided USB-C cable" width="640">
 </p>
 
 ## Features
 
-- **Sign mode** — one-tap status text, optional auto-clear timer, overrides the ambient rotation while active. Can also run as a **countdown timer** (1–99 min) that shows a live `MM:SS` on the matrix, plays a random animation (fireworks, sonar, or sparkle) at zero, then resumes ambient.
-- **Display on/off** — blank the screen (matrix dark, onboard LED dark, periodic fetches paused) without losing the saved ambient mode. The device stays powered; volatile, so a power cycle returns to on.
-- **Live data** — stock quotes (Finnhub) and weather (Open-Meteo, multi-location).
-- **12-hour clock** — steady "H:MM" when shown alone, scrolls "H:MM AM/PM" when mixed with other categories. Pacific timezone by default (change `TIMEZONE` in `src/config.h`).
-- **Companion [iOS app](ios/README.md)** — multi-device switcher, preset chip grid, and a Display tab with per-category content toggles plus a master on/off switch.
-- **Configured entirely over BLE** — no build-time secrets. WiFi creds, Finnhub key, tickers, locations, mode, and active sign all settable wirelessly and persisted in NVS.
-- **PIN-gated BLE** — every write is gated on a 6-digit PIN. iOS uses the native pairing dialog (system-level passkey entry, no app changes); the CLI sends the PIN via a dedicated Auth characteristic. The PIN is generated on first boot, scrolled on the LED matrix in setup mode, and rotates on factory reset.
-- **Factory reset button** — hold the BOOT button (GPIO 0) for 10 s. From the 2 s mark onward the matrix counts down so you know the press has registered. Releasing before 10 s aborts. On commit: every NVS namespace is wiped, every BLE bond is forgotten, and the device reboots into setup mode with a fresh PIN.
+- **Sign mode** — one-tap status text that overrides the ambient rotation, with an optional auto-clear timer. Or run a **countdown timer** (1–99 min): a live `MM:SS`, a random end animation (fireworks, sonar, sparkle), then back to ambient.
+- **Display on/off** — blank the matrix and pause fetches without losing the saved ambient mode. Volatile, so a power cycle returns to on.
+- **Live data** — stock quotes (Finnhub) and multi-location weather (Open-Meteo, geocoded on-device).
+- **12-hour clock** — steady `H:MM` when shown alone, scrolls `H:MM AM/PM` when mixed in. Timezone via `TIMEZONE` in `src/config.h`.
+- **Companion [iOS app](ios/README.md)** — multi-device switcher, preset chip grid, and a Display tab with per-category toggles plus a master on/off.
+- **Configured entirely over BLE** — no build-time secrets; WiFi, Finnhub key, tickers, locations, mode, and active sign all set wirelessly and persisted in NVS.
+- **PIN-gated BLE** — every write gated on a 6-digit PIN. iOS uses the native pairing dialog; the CLI sends it via a dedicated Auth characteristic. Generated on first boot, rotates on factory reset.
+- **Factory reset** — hold the BOOT button (GPIO 0) for 10 s (the matrix counts down from the 2 s mark; release to abort). Wipes all NVS, forgets every BLE bond, and reboots into setup mode with a fresh PIN.
+
+<p align="center">
+  <img src="assets/features.jpg" alt="Illustrated features guide: sign mode, countdown timer, live stocks and weather, the iOS companion app, and factory reset" width="480">
+</p>
 
 ## Hardware
 
@@ -118,15 +124,7 @@ For building a custom BLE client, see [BLE_PROTOCOL.md](BLE_PROTOCOL.md) — UUI
 
 ## Versioning
 
-Firmware version lives in [`src/version.h`](src/version.h) as a single `FW_VERSION` `#define` (semver `MAJOR.MINOR.PATCH`). It's printed on Serial at boot, exposed as a read-only BLE characteristic, and shown in the iOS app's Device tab and via `uv run tools/led.py get version`.
-
-Per-release workflow:
-
-1. Bump `FW_VERSION` in `src/version.h`.
-2. Commit (`git commit -am "release v0.3.0"`).
-3. Tag the commit (`git tag v0.3.0`) so the string in the code and the tag in history point at the same commit — you can always `git checkout v0.3.0` to rebuild the exact firmware on a board.
-4. `pio run -t upload`, reset the board, confirm the new version on Serial or in the iOS app.
-5. `git push && git push --tags` once you're happy.
+Firmware version lives in [`src/version.h`](src/version.h) as a single `FW_VERSION` `#define` (semver `MAJOR.MINOR.PATCH`). It's printed on Serial at boot, exposed as a read-only BLE characteristic, and shown in the iOS app's Device tab and via `uv run tools/led.py get version`. The per-release bump/tag/flash workflow is documented in [`CLAUDE.md`](CLAUDE.md#versioning).
 
 ## Configuration
 
