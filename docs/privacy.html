@@ -93,7 +93,7 @@
       <li><strong>No account, no sign-in.</strong></li>
       <li><strong>No third-party SDKs.</strong> The app talks only to (a) your LED Ticker hardware over Bluetooth Low Energy, and (b) the public Open-Meteo geocoding/weather API and Finnhub stock-quotes API — and those calls are made by <strong>your LED Ticker device</strong>, not by this app. The app never makes outbound network requests on its own.</li>
       <li><strong>Bluetooth permission</strong> is used solely to discover and connect to your LED Ticker device. The list of devices you've paired with is stored only on your phone (in <code>UserDefaults</code>) and is never transmitted off-device.</li>
-      <li><strong>WiFi credentials and your Finnhub API key</strong>, if you set them, are cached in your phone's <code>UserDefaults</code> and sent to your LED Ticker over Bluetooth so it can do its own fetches. The WiFi password is not persisted on the phone.</li>
+      <li><strong>Your Wi-Fi network name and Finnhub API key</strong>, if you set them, are cached in your phone's <code>UserDefaults</code> and sent to your LED Ticker over Bluetooth so it can do its own fetches. The Wi-Fi password is sent to the device but never stored on the phone.</li>
       <li><strong>The "preset chips"</strong> on the Sign tab are stored only on your phone in <code>UserDefaults</code>. They are not synced anywhere.</li>
     </ul>
 

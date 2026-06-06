@@ -53,20 +53,14 @@
         <p class="eyebrow"><span class="eyebrow__live">●</span> ON&nbsp;AIR · build your own</p>
         <h1 class="hero__title">A desk sign<br />that <span class="glow-text">never</span> sleeps.</h1>
         <p class="hero__lede">
-          An ambient ticker that rotates live stocks, weather, and the time —
-          then flips to a one-tap status sign on demand. Built on an ESP32-S3
-          and a 4-in-1 MAX7219 LED matrix. Configured entirely over Bluetooth.
+          An ambient ticker that rotates live stocks, weather, and the time.
+          It can flip to a one-tap status sign whenever you need it. Built on an ESP32-S3
+          and a 4-in-1 MAX7219 LED matrix, configured over Bluetooth from an iOS app.
         </p>
         <div class="hero__cta">
           <a class="btn btn--primary" href="https://github.com/ssayala/esp32-led-simple" target="_blank" rel="noopener">View on GitHub</a>
           <a class="btn btn--ghost" href="#build">Build one&nbsp;↓</a>
         </div>
-        <ul class="badges" aria-label="Project at a glance">
-          <li>ESP32-S3</li>
-          <li>BLE control</li>
-          <li>iOS app</li>
-          <li>Custom PCB</li>
-        </ul>
       </div>
       <figure class="hero__shot reveal" style="--d:.15s">
         <img src="assets/device.jpeg" alt="The LED Ticker on a desk, its red dot-matrix display reading ON AIR, wired to an ESP32-S3 board over a braided USB-C cable." width="896" height="869" />
@@ -87,12 +81,12 @@
       <article class="card reveal">
         <span class="card__ix">01</span>
         <h3>Sign mode</h3>
-        <p>One-tap status text — <code>BUSY</code>, <code>FOCUS</code>, <code>ON AIR</code> — overrides the ambient rotation, with an optional auto-clear timer.</p>
+        <p>One-tap status text (<code>BUSY</code>, <code>FOCUS</code>, <code>ON AIR</code>) overrides the ambient rotation, with an optional auto-clear timer.</p>
       </article>
       <article class="card reveal" style="--d:.05s">
         <span class="card__ix">02</span>
         <h3>Countdown timer</h3>
-        <p>A live <code>MM:SS</code> countdown from 1–99 min, capped with a random animation — fireworks, sonar, sparkle — then back to ambient.</p>
+        <p>A live <code>MM:SS</code> countdown from 1–99 min, ending in a random animation (fireworks, sonar, sparkle), then back to ambient.</p>
       </article>
       <article class="card reveal" style="--d:.1s">
         <span class="card__ix">03</span>
@@ -133,7 +127,7 @@
     <div class="section__head reveal">
       <p class="kicker">/ under the hood</p>
       <h2>How it works.</h2>
-      <p class="section__sub">Single-file firmware, deliberately. Here's what's holding it together.</p>
+      <p class="section__sub">Single-file firmware, deliberately. Here's what makes it tick.</p>
     </div>
 
     <div class="specs">
@@ -143,11 +137,11 @@
       </div>
       <div class="spec reveal" style="--d:.06s">
         <h3>BLE is the contract</h3>
-        <p>WiFi, API keys, tickers, locations, mode, and the active sign are all set over a documented GATT service. The CLI and the iOS app speak the same protocol.</p>
+        <p>Wi-Fi, API keys, tickers, locations, mode, and the active sign are all set over a documented GATT service. The CLI and the iOS app speak the same protocol.</p>
       </div>
       <div class="spec reveal" style="--d:.12s">
         <h3>Pairing &amp; PIN</h3>
-        <p>Bonded links via passkey entry, with a fallback PIN characteristic for non-pairing clients. Five wrong tries buys a lockout.</p>
+        <p>Bonded links via passkey entry, with a fallback PIN characteristic for non-pairing clients. Five wrong tries trigger a lockout.</p>
       </div>
       <div class="spec reveal" style="--d:.18s">
         <h3>Persisted in NVS</h3>
@@ -155,7 +149,7 @@
       </div>
       <div class="spec reveal" style="--d:.24s">
         <h3>On-device geocoding</h3>
-        <p>Type a city or ZIP and the ESP32 resolves it to coordinates itself via Open-Meteo — no companion server, the device does its own lookups and fetches.</p>
+        <p>Type a city or ZIP and the ESP32 resolves it to coordinates via Open-Meteo — no companion server, no phone in the loop.</p>
       </div>
       <div class="spec reveal" style="--d:.3s">
         <h3>One button, two jobs</h3>
@@ -219,7 +213,7 @@
           <pre><code>git clone https://github.com/ssayala/esp32-led-simple
 cd esp32-led-simple
 pio run -t upload   <span class="c">// build &amp; flash over USB-C</span></code></pre>
-          <p class="flash__note">First boot scrolls the BLE name and a 6-digit PIN on the matrix. Pair from the iOS app or the Python CLI, set your WiFi, and you're live. Full walkthrough in the <a href="https://github.com/ssayala/esp32-led-simple/blob/main/GETTING_STARTED.md" target="_blank" rel="noopener">Getting started guide</a>.</p>
+          <p class="flash__note">First boot scrolls the BLE name and a 6-digit PIN on the matrix. Pair from the iOS app or the Python CLI, set your Wi-Fi, and you're live. Full walkthrough in the <a href="https://github.com/ssayala/esp32-led-simple/blob/main/GETTING_STARTED.md" target="_blank" rel="noopener">Getting started guide</a>.</p>
           <p class="flash__note">No toolchain? <a href="flash.html">Flash it from your browser →</a> (Chrome/Edge, over USB).</p>
         </div>
       </div>

@@ -208,16 +208,6 @@ code, pre { font-family: var(--mono); }
 .btn--ghost { border-color: var(--line); color: var(--ink); }
 .btn--ghost:hover { border-color: var(--led-deep); background: rgba(255,47,47,.06); transform: translateY(-2px); }
 
-.badges {
-  display: flex; flex-wrap: wrap; gap: 10px; margin-top: 38px; list-style: none;
-}
-.badges li {
-  font-family: var(--mono); font-size: .76rem; letter-spacing: .04em;
-  color: var(--ink-mid);
-  padding: 6px 13px; border: 1px solid var(--line); border-radius: 7px;
-  background: var(--surface);
-}
-
 .hero__shot { position: relative; }
 .hero__shot img {
   width: 100%; height: auto; display: block; border-radius: 16px;
