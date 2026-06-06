@@ -321,6 +321,9 @@ code, pre { font-family: var(--mono); }
   align-items: start;
 }
 @media (max-width: 880px) { .build__grid { grid-template-columns: 1fr; } }
+/* let grid items shrink so the non-wrapping <pre> scrolls internally
+   instead of stretching the column and forcing the page sideways */
+.bom, .pcb { min-width: 0; }
 
 .bom table {
   width: 100%; border-collapse: collapse; font-size: .96rem;
