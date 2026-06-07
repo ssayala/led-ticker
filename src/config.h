@@ -48,15 +48,18 @@ const int defaultLocationCount =
 #define SIGN_BREATH_STEP_MS 400
 
 // --- Timer mode (countdown sign) ---
-// Whole-minute countdown rendered as MM:SS, then a randomly-chosen
-// end-of-timer animation.
+// Whole-minute countdown rendered as MM:SS, then the end-of-timer animation.
 #define TIMER_MAX_MINUTES 99
-// End animation (non-blocking, frame-stepped like the idle pixel). One of
-// several variants is picked at random when the countdown reaches zero.
+// End animation (non-blocking, frame-stepped like the idle pixel): a single
+// looped "explosion" — a detonation flash, an expanding thick shockwave, and
+// diagonal debris rays — fired repeatedly from center until the run ends.
 #define ANIM_FRAME_MS 80                         // ms per animation frame
 #define ANIM_CENTER_COL ((8 * MAX_DEVICES) / 2)  // 16 on a 4-module matrix
 #define ANIM_CENTER_ROW 3
-#define ANIM_FW_PARTICLES 48  // fireworks spark pool (3 bursts x 16 sparks)
+#define EXPLOSION_FRAMES 60         // total frames (~4.8 s at ANIM_FRAME_MS)
+#define EXPLOSION_CADENCE 6         // frames between successive detonations
+#define EXPLOSION_MAX_R 20          // shockwave radius that clears the matrix
+#define EXPLOSION_FLASH_INTENSITY 8 // panel brightness pop on each detonation
 
 // --- Time / NTP ---
 // POSIX TZ string. Change TIMEZONE if not in US Pacific.

@@ -1279,24 +1279,17 @@ void tickActiveStatus() {
 // Phases:
 //   TIMER_OFF  — inactive; loop() renders sign/ambient normally
 //   TIMER_RUN  — counting down; renders MM:SS, redrawn only on second change
-//   TIMER_ANIM — countdown hit 0; plays a random end animation, then resumes
+//   TIMER_ANIM — countdown hit 0; plays the explosion animation, then resumes
 enum TimerPhase { TIMER_OFF, TIMER_RUN, TIMER_ANIM };
 static TimerPhase timerPhase = TIMER_OFF;
 static uint32_t timerEndAt = 0;        // millis() target for 0:00
 static int lastShownTimerSec = -1;     // redraw cache (avoid per-tick repaint)
 
-// End-of-timer animation: one variant is chosen at random (esp_random) when
-// the countdown reaches zero. All are frame-stepped (no delay()) and finish
-// by calling resumeAmbient(). See tickEndAnim() and the draw* helpers.
-enum EndAnim { ANIM_FIREWORKS, ANIM_SONAR, ANIM_SPARKLE, ANIM_COUNT };
-static EndAnim endAnim = ANIM_FIREWORKS;
+// End-of-timer animation: a single looped "explosion" played when the
+// countdown reaches zero. Frame-stepped (no delay()) and finishes by calling
+// resumeAmbient(). See tickEndAnim() and drawExplosion().
 static int animFrame = -1;             // -1 = needs first paint
 static unsigned long animStepMs = 0;
-
-// Fireworks spark pool. Positions/velocities are fixed-point (x4 sub-pixel
-// units) so gravity acts smoothly across frames. Reseeded each fireworks run.
-struct Spark { int16_t x, y, vx, vy; int8_t life; };
-static Spark sparks[ANIM_FW_PARTICLES];
 
 // Cancel any text sign so the timer owns the override slot cleanly and the
 // post-timer resume goes to ambient. Mirrors clearStatus() without resuming.
@@ -1319,28 +1312,7 @@ static void cancelTimer() {
   resumeAmbient();  // enter*() helpers clear the display on transition
 }
 
-// Total frame count for each variant — the animation ends (resumes ambient)
-// once animFrame reaches this. At ANIM_FRAME_MS=80ms these are ~1.4–2.4s.
-static int animTotalFrames(EndAnim a) {
-  switch (a) {
-    case ANIM_FIREWORKS: return 30;
-    case ANIM_SONAR:     return 26;
-    default:             return 18;  // ANIM_SPARKLE
-  }
-}
-
-// Cheap deterministic hash → per-frame pseudo-random visuals without carrying
-// RNG state across frames (keeps animations replayable within one run).
-static inline uint32_t animHash(uint32_t a, uint32_t b, uint32_t c) {
-  uint32_t h = a * 73856093u ^ b * 19349663u ^ c * 83492791u;
-  h ^= h >> 13;
-  h *= 0x5bd1e995u;
-  h ^= h >> 15;
-  return h;
-}
-
-// Draw a filled diamond ring (Manhattan distance == r) — shared shockwave
-// primitive used by the sonar and TIME-pop variants.
+// Draw a hollow diamond ring (Manhattan distance == r) — the shockwave front.
 static void drawRing(MD_MAX72XX* mx, int r) {
   for (int row = 0; row <= IDLE_ROW_MAX; row++)
     for (int col = 0; col <= IDLE_COL_MAX; col++) {
@@ -1349,83 +1321,65 @@ static void drawRing(MD_MAX72XX* mx, int r) {
     }
 }
 
-// --- Variant: fireworks ---
-// Three staggered bursts of 8 radial sparks each; gravity pulls them down.
-static void seedFireworks() {
-  for (int i = 0; i < ANIM_FW_PARTICLES; i++) sparks[i].life = 0;
-}
-
-static void spawnBurst(int base, int cx, int cy) {
-  // 16 outward sparks in x4 fixed-point velocity units: 8 compass directions
-  // at two speeds (outer + inner shell) so the burst fills in rather than
-  // reading as a thin ring.
-  static const int8_t vdx[16] = {4, 3, 0, -3, -4, -3, 0, 3,
-                                  2, 2, 0, -2, -2, -2, 0, 2};
-  static const int8_t vdy[16] = {0, -3, -4, -3, 0, 3, 4, 3,
-                                  0, -2, -2, -2, 0, 2, 2, 2};
-  for (int i = 0; i < 16; i++) {
-    Spark& s = sparks[base + i];
-    s.x = (int16_t)(cx << 2);
-    s.y = (int16_t)(cy << 2);
-    s.vx = vdx[i];
-    s.vy = vdy[i];
-    s.life = 14;
-  }
-}
-
-static void drawFireworks(MD_MAX72XX* mx, int f) {
-  // Overlap the three bursts (16 sparks each) so more are airborne at once.
-  if (f == 0) spawnBurst(0, 8, 2);
-  if (f == 6) spawnBurst(16, 22, 2);
-  if (f == 12) spawnBurst(32, 15, 3);
-
-  mx->clear();
-  for (int i = 0; i < ANIM_FW_PARTICLES; i++) {
-    Spark& s = sparks[i];
-    if (s.life <= 0) continue;
-    s.x += s.vx;
-    s.y += s.vy;
-    s.vy += 1;  // gravity (x4 units / frame^2)
-    s.life--;
-    int px = s.x >> 2, py = s.y >> 2;
-    if (px >= 0 && px <= IDLE_COL_MAX && py >= 0 && py <= IDLE_ROW_MAX)
-      mx->setPoint(py, px, true);
-    // Trailing pixel at the previous position — a short streak reads denser
-    // and gives the sparks motion.
-    int tx = (s.x - s.vx) >> 2, ty = (s.y - s.vy) >> 2;
-    if (tx >= 0 && tx <= IDLE_COL_MAX && ty >= 0 && ty <= IDLE_ROW_MAX)
-      mx->setPoint(ty, tx, true);
-  }
-}
-
-// --- Variant: sonar pulse ---
-// Three expanding rings; global intensity pulses bright→dim within each cycle.
-static void drawSonar(MD_MAX72XX* mx, int f) {
-  mx->clear();
-  const int pulseStart[3] = {0, 7, 14};
-  for (int p = 0; p < 3; p++) {
-    int age = f - pulseStart[p];
-    if (age >= 0 && age <= 10) drawRing(mx, age);
-  }
-  int level = SIGN_BREATH_MAX_INTENSITY - (f % 7);
-  if (level < SIGN_BREATH_MIN_INTENSITY) level = SIGN_BREATH_MIN_INTENSITY;
-  display.setIntensity(level);
-}
-
-// --- Variant: sparkle confetti ---
-// Random twinkle whose density tapers to nothing.
-static void drawSparkle(MD_MAX72XX* mx, int f) {
-  mx->clear();
-  int density = 45 - (f * 45) / 18;  // % of pixels lit, fades to 0
-  if (density < 0) density = 0;
+// Draw a filled diamond (Manhattan distance <= r) — the detonation core flash.
+static void drawDiamondFill(MD_MAX72XX* mx, int r) {
   for (int row = 0; row <= IDLE_ROW_MAX; row++)
     for (int col = 0; col <= IDLE_COL_MAX; col++)
-      if ((animHash(col, row, f) % 100u) < (uint32_t)density)
+      if (abs(col - ANIM_CENTER_COL) + abs(row - ANIM_CENTER_ROW) <= r)
         mx->setPoint(row, col, true);
 }
 
+// Diagonal debris riding just ahead of the shockwave, giving the blast its
+// spiky star shape (the 4 cardinal points already sit on the diamond ring).
+static void drawDebris(MD_MAX72XX* mx, int dist) {
+  static const int8_t dx[4] = {1, 1, -1, -1};
+  static const int8_t dy[4] = {1, -1, 1, -1};
+  for (int i = 0; i < 4; i++) {
+    int px = ANIM_CENTER_COL + dx[i] * dist;
+    int py = ANIM_CENTER_ROW + dy[i] * dist;
+    if (px >= 0 && px <= IDLE_COL_MAX && py >= 0 && py <= IDLE_ROW_MAX)
+      mx->setPoint(py, px, true);
+  }
+}
+
+// One looped explosion: detonations fire from center every EXPLOSION_CADENCE
+// frames; each throws a 2-px-thick diamond shockwave plus diagonal debris
+// outward, led by a bright core flash. The panel brightness pops on each
+// detonation frame for punch. Fully deterministic — no randomness.
+static void drawExplosion(MD_MAX72XX* mx, int f) {
+  mx->clear();
+  bool detonating = false;
+
+  // Latest frame a new blast may start and still expand to EXPLOSION_MAX_R
+  // before the run ends at frame EXPLOSION_FRAMES-1, so the last shockwave
+  // fully clears the matrix (a clean tail, not a hard cut). Derived from the
+  // constants — correct for any EXPLOSION_CADENCE — rather than hand-tuned.
+  // Clamped to 0 so a mis-tuned, too-short run still fires the opening blast
+  // instead of rendering nothing.
+  int lastBlastStart = EXPLOSION_FRAMES - 1 - EXPLOSION_MAX_R;
+  if (lastBlastStart < 0) lastBlastStart = 0;
+
+  for (int start = 0; start <= f && start <= lastBlastStart;
+       start += EXPLOSION_CADENCE) {
+    int age = f - start;
+    if (age == 0) {  // detonation: bright filled core + panel flash
+      drawDiamondFill(mx, 3);
+      detonating = true;
+    } else if (age == 1) {
+      drawDiamondFill(mx, 1);
+    }
+    if (age >= 1 && age <= EXPLOSION_MAX_R) {  // thick expanding shockwave
+      drawRing(mx, age);
+      drawRing(mx, age - 1);
+      drawDebris(mx, age + 1);  // debris leads the wave
+    }
+  }
+
+  display.setIntensity(detonating ? EXPLOSION_FLASH_INTENSITY : DISPLAY_INTENSITY);
+}
+
 // End-animation pump. Frame-stepped via millis() like tickIdle() — no delay().
-// Dispatches to the chosen variant; resumes ambient when its frames run out.
+// Plays the looped explosion; resumes ambient when its frames run out.
 static void tickEndAnim() {
   MD_MAX72XX* mx = display.getGraphicObject();
   unsigned long now = millis();
@@ -1434,7 +1388,6 @@ static void tickEndAnim() {
     display.displayClear();  // reset Parola zones before raw setPoint() use
     display.setIntensity(DISPLAY_INTENSITY);
     mx->clear();
-    if (endAnim == ANIM_FIREWORKS) seedFireworks();
     animFrame = 0;
     animStepMs = now;
   } else {
@@ -1443,17 +1396,13 @@ static void tickEndAnim() {
     animFrame++;
   }
 
-  if (animFrame >= animTotalFrames(endAnim)) {
+  if (animFrame >= EXPLOSION_FRAMES) {
     timerPhase = TIMER_OFF;
     resumeAmbient();
     return;
   }
 
-  switch (endAnim) {
-    case ANIM_FIREWORKS: drawFireworks(mx, animFrame); break;
-    case ANIM_SONAR:     drawSonar(mx, animFrame); break;
-    default:             drawSparkle(mx, animFrame); break;  // ANIM_SPARKLE
-  }
+  drawExplosion(mx, animFrame);
 }
 
 // Render pump for an active timer. Called from loop() with top precedence
@@ -1469,9 +1418,8 @@ void tickTimer() {
   int32_t remainMs = (int32_t)(timerEndAt - now);  // wrap-safe signed delta
   if (remainMs <= 0) {
     timerPhase = TIMER_ANIM;
-    endAnim = (EndAnim)(esp_random() % ANIM_COUNT);
     animFrame = -1;
-    Serial.printf("Timer: done, anim=%d\n", (int)endAnim);
+    Serial.println("Timer: done, playing explosion");
     return;
   }
 
