@@ -76,7 +76,7 @@ A minute-granular countdown that overrides ambient like a sign, entered via the 
 State (`TimerPhase` + `timerEndAt`, all RAM-only):
 - `TIMER_OFF` — inactive; `loop()` renders sign/ambient normally.
 - `TIMER_RUN` — `tickTimer()` renders `MM:SS` (ceil-to-second so a fresh N-min timer shows `N:00` and the last frame is `0:01`), redrawn only on second change via the `lastShownTimerSec` cache. Uses the static `displayText` path (≤5 chars).
-- `TIMER_ANIM` — at zero, `tickEndAnim()` plays one of three end animations, chosen at random via `esp_random() % ANIM_COUNT` at the transition: **fireworks** (gravity-driven spark bursts), **sonar** (expanding rings with a global intensity pulse), **sparkle** (tapering random twinkle). All are frame-stepped via `millis()` like `tickIdle()` (no `delay()`), draw through `getGraphicObject()->setPoint()`, and call `resumeAmbient()` once their `animTotalFrames()` budget elapses. Variant visuals are deterministic per frame via `animHash()`, so no RNG state is carried across frames.
+- `TIMER_ANIM` — at zero, `tickEndAnim()` plays one of three end animations (fireworks, sonar, sparkle), picked via `esp_random() % ANIM_COUNT` at the transition. Frame-stepped via `millis()` like `tickIdle()` (no `delay()`), drawn through `getGraphicObject()->setPoint()`, ending in `resumeAmbient()` once the `animTotalFrames()` budget elapses. Per-frame visuals are deterministic via `animHash()` — no RNG state carried across frames.
 
 `loop()` gives the timer top render precedence (`if (timerPhase != TIMER_OFF) tickTimer()` ahead of `checkStatusForRender()`). Timing is `millis()`-based so it works on no-WiFi devices. `cmd=reset` forces `TIMER_OFF`.
 
@@ -112,15 +112,9 @@ apply pending BLE updates
   → fetch every FETCH_INTERVAL_MS (5 min) if WiFi up
 ```
 
-## BLE write → deferred apply pattern
+## Deferred apply & cross-core safety
 
-Each characteristic callback copies the payload into a `pending*` buffer and sets a `*UpdatePending` volatile flag. `loop()` consumes these via `applyPending*()` handlers.
-
-**Don't do heavy work (network, display) inside callbacks.**
-
-## Cross-core safety
-
-The fetch task runs on Core 0 but must not call `neopixelWrite()` directly. It sets the volatile `fetching` flag; `loop()` on Core 1 consumes it via `updateStatusLed()`. Same deferred pattern as BLE callbacks.
+Each characteristic callback copies the payload into a `pending*` buffer and sets a `*UpdatePending` volatile flag; `loop()` consumes these via `applyPending*()` handlers. **No heavy work (network, display) inside callbacks.** The fetch task (Core 0) follows the same pattern: it must not call `neopixelWrite()` directly — it sets the volatile `fetching` flag, and `loop()` (Core 1) consumes it via `updateStatusLed()`.
 
 ## Fetch cooldown
 
@@ -169,9 +163,7 @@ Stocks (`stockQuotes[]`, raw price + changePct) and weather (`weatherReadings[]`
 - Prefix on every `[hb]` heartbeat line (since USB-CDC enumeration timing means the boot banner can be missed)
 - Read-only Version BLE characteristic (UUID `...26b0`)
 
-iOS reads it on connect. **`.version` is in iOS `CharKind` but NOT in `requiredKinds`** — older firmware without the characteristic still connects cleanly (`firmwareVersion` ends up empty).
-
-`tools/led.py get version` reads the same characteristic.
+iOS reads it on connect; **`.version` is in iOS `CharKind` but NOT in `requiredKinds`**, so older firmware without the characteristic still connects cleanly (`firmwareVersion` stays empty). `tools/led.py get version` reads the same characteristic.
 
 ## Serial reliability
 
