@@ -4,7 +4,7 @@ Build, flash, and configure an LED Ticker. For what it is and what it does, see 
 
 ## Hardware & wiring
 
-The firmware targets one specific board; the custom PCB is sized for the same module (see [`pcb/`](pcb/README.md)).
+The firmware targets one specific board; the custom PCB is sized for the same module (see [`hardware/pcb/`](hardware/pcb/README.md)).
 
 | Component | Part |
 |-----------|------|
@@ -23,13 +23,13 @@ The firmware targets one specific board; the custom PCB is sized for the same mo
 
 Onboard RGB LED (GPIO 48) lights blue during network fetches. The Freenove board's **BOOT button (GPIO 0)** doubles as the factory-reset trigger — hold for 10 s during normal runtime.
 
-**Using a different ESP32-S3 board?** Edit `DIN_PIN` / `CLK_PIN` / `CS_PIN` / `RGB_LED_PIN` in `src/config.h`. The PCB has no flexibility — it's footprint-specific to the FNK0099.
+**Using a different ESP32-S3 board?** Edit `DIN_PIN` / `CLK_PIN` / `CS_PIN` / `RGB_LED_PIN` in `firmware/src/config.h`. The PCB has no flexibility — it's footprint-specific to the FNK0099.
 
 ## Build & flash
 
 1. Install [PlatformIO](https://platformio.org/).
-2. Optionally edit defaults in `src/config.h` — seed tickers/locations (first-boot NVS seed) plus the user tunables under [Configuration](#configuration) below.
-3. Build and upload: `pio run -t upload`. Press the physical reset button after flashing.
+2. Optionally edit defaults in `firmware/src/config.h` — seed tickers/locations (first-boot NVS seed) plus the user tunables under [Configuration](#configuration) below.
+3. Build and upload from the repo root: `pio run -d firmware -t upload`. Press the physical reset button after flashing.
 4. On first boot the display scrolls the BLE device name **and a 6-digit PIN** (e.g. `LED-Ticker-AB12  PIN 482 913`). Note the PIN — you'll need it on every client.
 
 > **No toolchain?** Released firmware can be flashed straight from a browser over USB at **[ledticker.app/flash](https://ledticker.app/flash.html)** — Chrome or Edge on a desktop, no PlatformIO required.
@@ -45,11 +45,11 @@ Onboard RGB LED (GPIO 48) lights blue during network fetches. The Freenove board
   ```
   The last arg to `wifi` is always the password — everything before it is the SSID, so spaces work naturally.
 
-If you ever forget the PIN, read it off the serial monitor (`pio device monitor`) at boot, or factory-reset to rotate it.
+If you ever forget the PIN, read it off the serial monitor (`pio device monitor -d firmware`) at boot, or factory-reset to rotate it.
 
 ## Configuration
 
-**User tunables — `src/config.h`:**
+**User tunables — `firmware/src/config.h`:**
 
 | Define | Default | Description |
 |--------|---------|-------------|
@@ -61,4 +61,4 @@ If you ever forget the PIN, read it off the serial monitor (`pio device monitor`
 | `NTP_SERVER` | `pool.ntp.org` | NTP host |
 | `FETCH_INTERVAL_MS` | 5 min | Stock + weather refresh interval |
 
-**Hardware pins — `src/config.h`:** `HARDWARE_TYPE`, `MAX_DEVICES` (4), `DIN_PIN`/`CLK_PIN`/`CS_PIN` (6/4/5), `RGB_LED_PIN` (48), `BUTTON_PIN` (0). Edit these when porting to a different board — see [Hardware & wiring](#hardware--wiring) above.
+**Hardware pins — `firmware/src/config.h`:** `HARDWARE_TYPE`, `MAX_DEVICES` (4), `DIN_PIN`/`CLK_PIN`/`CS_PIN` (6/4/5), `RGB_LED_PIN` (48), `BUTTON_PIN` (0). Edit these when porting to a different board — see [Hardware & wiring](#hardware--wiring) above.

@@ -191,12 +191,12 @@
             <tr>
               <td>PCB</td>
               <td>Custom board carrying both modules — EasyEDA sources, order via JLCPCB</td>
-              <td><a href="https://github.com/ssayala/esp32-led-simple/tree/main/pcb" target="_blank" rel="noopener">Files ↗</a></td>
+              <td><a href="https://github.com/ssayala/esp32-led-simple/tree/main/hardware/pcb" target="_blank" rel="noopener">Files ↗</a></td>
             </tr>
             <tr>
               <td>Case</td>
               <td>3D-printed case (STLs included)</td>
-              <td><a href="https://github.com/ssayala/esp32-led-simple/tree/main/assets/case" target="_blank" rel="noopener">STLs ↗</a></td>
+              <td><a href="https://github.com/ssayala/esp32-led-simple/tree/main/hardware/case" target="_blank" rel="noopener">STLs ↗</a></td>
             </tr>
             <tr>
               <td>Cable</td>
@@ -209,7 +209,7 @@
         <div class="flash">
           <p class="flash__label">// then flash it</p>
           <pre><code>git clone https://github.com/ssayala/esp32-led-simple
-cd esp32-led-simple
+cd esp32-led-simple/firmware
 pio run -t upload   <span class="c">// build &amp; flash over USB-C</span></code></pre>
           <p class="flash__note">First boot scrolls the BLE name and a 6-digit PIN. Pair from the iOS app or the Python CLI, set your Wi-Fi, and you're live. Full walkthrough in the <a href="https://github.com/ssayala/esp32-led-simple/blob/main/GETTING_STARTED.md" target="_blank" rel="noopener">Getting started guide</a>.</p>
           <p class="flash__note">No toolchain? <a href="flash.html">Flash it from your browser</a>&nbsp;with Chrome, over USB.</p>

@@ -68,7 +68,7 @@ Write-only.
 Plain string — Finnhub API key. Saved to NVS, triggers an immediate stock fetch.
 
 ### Version
-Read-only. Returns the firmware version (e.g. `0.1.0`) compiled into the device — the `FW_VERSION` define in `src/version.h`. Clients can use this to detect old firmware and prompt the user to flash. Older firmwares (before this characteristic existed) won't expose it; treat its absence as "unknown / pre-0.1.0".
+Read-only. Returns the firmware version (e.g. `0.1.0`) compiled into the device — the `FW_VERSION` define in `firmware/src/version.h`. Clients can use this to detect old firmware and prompt the user to flash. Older firmwares (before this characteristic existed) won't expose it; treat its absence as "unknown / pre-0.1.0".
 
 ### Power
 Write `"on"` or `"off"` (case-insensitive, whitespace-tolerant) to toggle the display on/off switch. Reads return `"on"` or `"off"` reflecting current state. Unknown payloads are ignored (no GATT error; device stays in its current state).

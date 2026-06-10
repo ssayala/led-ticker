@@ -26,13 +26,13 @@ jobs:
           path: |
             ~/.platformio
             ~/.cache/pip
-          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          key: pio-${{ runner.os }}-${{ hashFiles('firmware/platformio.ini') }}
 
       - name: Install PlatformIO
         run: pip install --upgrade platformio
 
       - name: Build firmware
-        run: pio run -e esp32-s3
+        run: pio run -d firmware -e esp32-s3
 
       # Gather the four images a full flash needs. We ship them as separate
       # parts (not a merged image) so each binary keeps the flash header the
@@ -45,7 +45,7 @@ jobs:
       - name: Collect flash images
         run: |
           set -euo pipefail
-          BUILD=.pio/build/esp32-s3
+          BUILD=firmware/.pio/build/esp32-s3
           mkdir -p dist
           cp "$BUILD/firmware.bin"   dist/firmware.bin
           cp "$BUILD/bootloader.bin" dist/bootloader.bin

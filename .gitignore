@@ -1,4 +1,4 @@
-src/secrets.h
+firmware/src/secrets.h
 .pio
 .vscode/
 tools/__pycache__/
@@ -10,7 +10,7 @@ ios/Signing.local.xcconfig
 ios/store/
 .DS_Store
 docs/.preview/
-docs/superpowers/
+notes/
 assets/features-landscape.png
 assets/device-sketch-hires.png
 docs/assets/device-highres.png

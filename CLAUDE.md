@@ -1,20 +1,20 @@
 # CLAUDE.md
 
-Guidance for Claude Code working in this repo. Architecture details live in [`ARCHITECTURE.md`](ARCHITECTURE.md) — read it before non-trivial edits to `src/main.cpp`.
+Guidance for Claude Code working in this repo. Architecture details live in [`ARCHITECTURE.md`](ARCHITECTURE.md) — read it before non-trivial edits to `firmware/src/main.cpp`.
 
 ## Build & Upload
 
 ```bash
-pio run -t upload       # build and flash to ESP32-S3
-pio device monitor      # serial monitor (115200 baud, /dev/ttyACM0)
-pio run                 # build only
+pio run -d firmware -t upload    # build and flash to ESP32-S3
+pio device monitor -d firmware   # serial monitor (115200 baud, /dev/ttyACM0)
+pio run -d firmware              # build only
 ```
 
-Press the physical reset button after flashing.
+Run from the repo root (`-d firmware` points PlatformIO at the project dir). Press the physical reset button after flashing.
 
 ## Project Overview
 
-Single-file ESP32-S3 firmware (`src/main.cpp`) driving a DIYables 4-in-1 MAX7219 matrix. Two orthogonal display layers:
+Single-file ESP32-S3 firmware (`firmware/src/main.cpp`) driving a DIYables 4-in-1 MAX7219 matrix. Two orthogonal display layers:
 
 - **Ambient rotation** — stocks (Finnhub), weather (Open-Meteo, geocoded on-device), clock (NTP). Controlled by an enabled-category bitmask.
 - **Active status (sign mode)** — single text string that overrides ambient until expiry/clear. ≤5 chars steady, longer scrolls. No on-device preset library — iOS app holds chips locally. Can also run as a **countdown timer** (`timer <min>` Command verb, 1–99 min) that renders a live `MM:SS`, plays a random end animation at zero, then resumes ambient — mutually exclusive with the text sign.
@@ -23,17 +23,17 @@ Both layers set independently over BLE. Missing prereqs (WiFi creds, Finnhub key
 
 ## Hardware
 
-- **Board:** Freenove ESP32-S3-WROOM (FNK0099). PCB in `pcb/` is module-specific.
+- **Board:** Freenove ESP32-S3-WROOM (FNK0099). PCB in `hardware/pcb/` is module-specific.
 - **Display:** DIYables 4-in-1 MAX7219, hardware SPI.
 - **SPI pins:** DIN=GPIO6, CLK=GPIO4, CS=GPIO5. Must call `SPI.begin(CLK, -1, DIN, CS)` before display init.
 - **Status LED:** WS2812 on GPIO 48. Blue during fetches.
 - **Reset button:** BOOT button on GPIO 0. Hold 10s during runtime → full factory reset (wipes all NVS, regenerates PIN, reboots); 2s mark starts a `RESET N` countdown for abort visibility. Safe to poll at runtime — GPIO0 is sampled by the bootloader only at hardware reset. **Do not hold this button while pressing the physical RESET button** — that combination drops the chip into the ROM bootloader.
-- **Porting:** edit `DIN_PIN` / `CLK_PIN` / `CS_PIN` / `RGB_LED_PIN` / `BUTTON_PIN` (plus `HARDWARE_TYPE` / `MAX_DEVICES`) in `src/config.h`.
+- **Porting:** edit `DIN_PIN` / `CLK_PIN` / `CS_PIN` / `RGB_LED_PIN` / `BUTTON_PIN` (plus `HARDWARE_TYPE` / `MAX_DEVICES`) in `firmware/src/config.h`.
 
 ## Configuration
 
-- No build-time secrets. `src/secrets.h` does not exist.
-- **`src/config.h`** — compile-time defaults only: seed `stockTickers[]`, `defaultLocations[]`.
+- No build-time secrets. `firmware/src/secrets.h` does not exist.
+- **`firmware/src/config.h`** — compile-time defaults only: seed `stockTickers[]`, `defaultLocations[]`.
 - **NVS namespaces:** `wifi`, `apikey`, `tickers`, `locs`, `display` (key `mask`), `pin` (keys `code`, `on`). Tombstones: `msgs`, `status` (wiped on reset, otherwise unused).
 - **RAM-only:** fetched quotes/weather, active sign. Power cycle clears sign and resumes ambient.
 - **BLE name:** `LED-Ticker-XXXX` (low 2 bytes of chip MAC) — primary control plane.
@@ -65,12 +65,12 @@ Service UUID `4fafc201-1fb5-459e-8fcc-c5c9c331914b`. Full UUID/payload reference
 
 ## Versioning
 
-`FW_VERSION` in `src/version.h`. Bumped manually, tagged in git. Surfaced via serial banner, `[hb]` heartbeat prefix, and read-only Version BLE characteristic. iOS treats `.version` as optional for back-compat.
+`FW_VERSION` in `firmware/src/version.h`. Bumped manually, tagged in git. Surfaced via serial banner, `[hb]` heartbeat prefix, and read-only Version BLE characteristic. iOS treats `.version` as optional for back-compat.
 
 Per-release workflow:
 
-1. Bump `FW_VERSION` in `src/version.h`.
+1. Bump `FW_VERSION` in `firmware/src/version.h`.
 2. Commit (`git commit -am "release v0.3.0"`).
 3. Tag the commit (`git tag v0.3.0`) so the string in the code and the tag in history point at the same commit — `git checkout v0.3.0` rebuilds the exact firmware on a board.
-4. `pio run -t upload`, reset the board, confirm the new version on Serial or in the iOS app.
+4. `pio run -d firmware -t upload`, reset the board, confirm the new version on Serial or in the iOS app.
 5. `git push && git push --tags` once you're happy.

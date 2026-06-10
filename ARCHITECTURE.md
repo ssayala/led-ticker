@@ -1,6 +1,6 @@
 # Architecture
 
-Deep-dive notes for the ESP32-S3 LED ticker firmware. [`CLAUDE.md`](CLAUDE.md) has the essentials; this file has the details you need when actually editing `src/main.cpp`.
+Deep-dive notes for the ESP32-S3 LED ticker firmware. [`CLAUDE.md`](CLAUDE.md) has the essentials; this file has the details you need when actually editing `firmware/src/main.cpp`.
 
 ## Mode state
 
@@ -164,7 +164,7 @@ Stocks (`stockQuotes[]`, raw price + changePct) and weather (`weatherReadings[]`
 
 ## Versioning
 
-`FW_VERSION` is a `#define` in `src/version.h` (semver). Bumped manually per release, tagged in git. Surfaced three ways:
+`FW_VERSION` is a `#define` in `firmware/src/version.h` (semver). Bumped manually per release, tagged in git. Surfaced three ways:
 - Serial banner at boot (`LED-Ticker firmware vX.Y.Z`)
 - Prefix on every `[hb]` heartbeat line (since USB-CDC enumeration timing means the boot banner can be missed)
 - Read-only Version BLE characteristic (UUID `...26b0`)
