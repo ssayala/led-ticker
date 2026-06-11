@@ -49,7 +49,7 @@ No toolchain? Flash released firmware straight from a browser at **[ledticker.ap
 - **[Getting started](GETTING_STARTED.md)** — build, flash, first-boot pairing, and `config.h` tuning.
 - **[CLI tool](tools/README.md)** — the `uv`-based `led.py` command reference.
 - **[BLE protocol](BLE_PROTOCOL.md)** — UUIDs, payloads, and semantics for custom clients.
-- **[Architecture](ARCHITECTURE.md)** — firmware internals.
+- **[Firmware guide](firmware/FIRMWARE_GUIDE.md)** — firmware internals: dual-core model, display state machine, and how to extend it.
 - **[Custom PCB](hardware/pcb/README.md)** — board sources, render, and ordering.
 - **[3D-printed case](hardware/case/)** — printable STLs for the matrix bracket and strips.
 - **[iOS app](ios/README.md)** — the companion app.

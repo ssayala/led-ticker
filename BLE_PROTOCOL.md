@@ -104,7 +104,7 @@ A BLE connection is "authenticated" (allowed to write to non-Auth characteristic
 Reads always work — auth gates writes only.
 
 > [!NOTE]
-> Implementation details regarding connection slots (`AuthSlot`), rate-limiting (5 wrong PINs → 5-second silent lockout), concurrent connection limits, and NVS PIN persistence can be found in the [Firmware Guide: Security & Auth](firmware/FIRMWARE_GUIDE.md#4-security-authentication--rate-limiting).
+> Implementation details regarding connection slots (`AuthSlot`), rate-limiting (5 wrong PINs → 5-second silent lockout), concurrent connection limits, and NVS PIN persistence can be found in the [Firmware Guide: Security & Auth](firmware/FIRMWARE_GUIDE.md#7-security-authentication--rate-limiting).
 
 
 ## Cooldown
