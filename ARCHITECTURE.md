@@ -96,7 +96,8 @@ initDisplay()
   → triggerFetch()
 ```
 
-`initTime()` is **gated on `WiFi.status() == WL_CONNECTED`** and no-ops otherwise. Starting lwIP's SNTP daemon without WiFi wedges the device (pre-IDF-5 SNTP client accumulates state on failed DNS lookups and dies after ~10 minutes). When WiFi is configured later via BLE, `applyPendingWifi()` calls `initTime()` after the reconnect.
+`initTime()` is **gated on `WiFi.status() == WL_CONNECTED`** and no-ops otherwise. Starting lwIP's SNTP daemon without WiFi wedges the device (pre-IDF-5 SNTP client accumulates state on failed DNS lookups and dies after ~10 minutes). For detailed memory and network security gates, see [Firmware Guide: SNTP Time Gate](firmware/FIRMWARE_GUIDE.md#53-sntp-time-init-gate).
+
 
 ## Main loop (cooperative, no `delay()`)
 
@@ -115,6 +116,9 @@ apply pending BLE updates
 ## Deferred apply & cross-core safety
 
 Each characteristic callback copies the payload into a `pending*` buffer and sets a `*UpdatePending` volatile flag; `loop()` consumes these via `applyPending*()` handlers. **No heavy work (network, display) inside callbacks.** The fetch task (Core 0) follows the same pattern: it must not call `neopixelWrite()` directly — it sets the volatile `fetching` flag, and `loop()` (Core 1) consumes it via `updateStatusLed()`.
+
+For thread synchronization and Core 0 vs Core 1 scheduling mappings, see [Firmware Guide: System Architecture & Multitasking](firmware/FIRMWARE_GUIDE.md#1-system-architecture--multitasking).
+
 
 ## Fetch cooldown
 
@@ -161,3 +165,6 @@ iOS reads it on connect; **`.version` is in iOS `CharKind` but NOT in `requiredK
 ## Serial reliability
 
 `Serial.setTxTimeoutMs(0)` immediately after `Serial.begin()`. Default 250ms blocking write was a latent matrix-stutter risk when running headless and the TX buffer filled with no host draining. `delay(2000)` wait-for-`!Serial` is only about catching the boot banner in `pio device monitor`, not correctness.
+
+For more details on non-blocking Serial configuration and other hardware/memory safety rules, see [Firmware Guide: Memory Safety & Hardware Rules](firmware/FIRMWARE_GUIDE.md#5-critical-memory-safety--hardware-rules).
+

@@ -95,18 +95,17 @@ Write a POSIX TZ string — e.g. `PST8PDT,M3.2.0,M11.1.0` (US Pacific) or `IST-5
 - Older firmwares won't expose this characteristic.
 
 ### Auth
+
 A BLE connection is "authenticated" (allowed to write to non-Auth characteristics) once either of these happens:
 
-1. **Bonded link.** The device advertises passkey-entry pairing (`bond=true, MITM=true, SC=true`, IO cap `DISPLAY_ONLY`) and asks the central to pair on every fresh connection; iOS shows its native "Bluetooth Pairing Request" dialog and the user types the 6-digit PIN from the LED matrix. `onPassKeyRequest` returns `nvsPin` — the same PIN as the Auth-write path. Bonded reconnects are silent and encrypted from the start. Just-Works pairing is deliberately *not* used — it would let any iPhone in range bond silently.
-2. **PIN write.** The client writes the 6-digit PIN to the Auth characteristic (`…26b2`, write-only). On match the connection is authenticated for its lifetime. Fallback for clients that decline pairing (Python CLI on Linux, etc.).
+1. **Bonded link:** The device advertises passkey-entry pairing (`bond=true, MITM=true, SC=true`, IO cap `DISPLAY_ONLY`) and asks the central to pair on every fresh connection. iOS shows its native "Bluetooth Pairing Request" dialog, and the user types the 6-digit PIN from the LED matrix.
+2. **PIN write:** The client writes the 6-digit PIN to the Auth characteristic (`…26b2`, write-only). On match, the connection is authenticated for its lifetime. This is the fallback for clients that decline pairing (e.g., Python CLI on Linux).
 
 Reads always work — auth gates writes only.
 
-- The PIN is generated on first boot and persisted to NVS. Recovery channels: scrolled on the matrix in setup mode, printed to serial at every boot. Factory reset (`Command=reset` or a 10s BOOT-button hold) rotates it.
-- Enforcement is **on by default**. Both shipped clients pass the gate (iOS via bonding, CLI via Auth), so there's no reason to disable it; `Command=pin-enforce off` exists as an escape hatch (e.g. probing from a generic GATT browser).
-- Rate limit: 5 wrong PINs from one connection → 5-second silent lockout on that connection's Auth slot. The connection stays open; only further Auth writes are dropped.
-- Maximum 4 concurrent connections are tracked. A 5th connection works but its auth slot logs "FULL" and its writes are rejected while enforcement is on.
-- Race window: writes that arrive between connect and bond/auth completion are rejected as unauthed. Bonded reconnects have no window — the link is encrypted before the connection event fires.
+> [!NOTE]
+> Implementation details regarding connection slots (`AuthSlot`), rate-limiting (5 wrong PINs → 5-second silent lockout), concurrent connection limits, and NVS PIN persistence can be found in the [Firmware Guide: Security & Auth](firmware/FIRMWARE_GUIDE.md#4-security-authentication--rate-limiting).
+
 
 ## Cooldown
 
