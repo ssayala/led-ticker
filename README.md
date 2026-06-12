@@ -42,7 +42,7 @@ Wiring, porting notes, and pin config are in [Getting started](GETTING_STARTED.m
 2. Build and upload from the repo root: `pio run -d firmware -t upload`, then press the board's reset button.
 3. First boot scrolls the BLE name + a 6-digit PIN — note it; you'll need it on every client.
 
-No toolchain? Flash released firmware straight from a browser at **[ledticker.app/flash](https://ledticker.app/flash.html)**.
+No toolchain? Flash released firmware straight from a browser at **[ledticker.app/flash](https://ledticker.app/flash)**.
 
 ## Documentation
 

@@ -32,7 +32,7 @@ Onboard RGB LED (GPIO 48) lights blue during network fetches. The Freenove board
 3. Build and upload from the repo root: `pio run -d firmware -t upload`. Press the physical reset button after flashing.
 4. On first boot the display scrolls the BLE device name **and a 6-digit PIN** (e.g. `LED-Ticker-AB12  PIN 482 913`). Note the PIN — you'll need it on every client.
 
-> **No toolchain?** Released firmware can be flashed straight from a browser over USB at **[ledticker.app/flash](https://ledticker.app/flash.html)** — Chrome or Edge on a desktop, no PlatformIO required.
+> **No toolchain?** Released firmware can be flashed straight from a browser over USB at **[ledticker.app/flash](https://ledticker.app/flash)** — Chrome or Edge on a desktop, no PlatformIO required.
 
 ## First-boot pairing
 
