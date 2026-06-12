@@ -710,8 +710,17 @@ static bool geocodeLocation(HTTPClient& http, const char* query,
   return true;
 }
 
-static void fetchWeatherImpl() {
+static void fetchWeatherImpl(bool force) {
   if (WiFi.status() != WL_CONNECTED || nvsLocationCount == 0) return;
+
+  // Weather updates ~hourly upstream — no reason to poll at the stock rate.
+  // force (config change) and cold boot (no data yet) bypass the throttle;
+  // a fully failed fetch leaves weatherCount at 0 so the next tick retries.
+  static unsigned long lastWeatherFetchMs = 0;
+  if (!force && weatherCount > 0 &&
+      millis() - lastWeatherFetchMs < WEATHER_INTERVAL_MS)
+    return;
+  lastWeatherFetchMs = millis();
 
   HTTPClient http;
   http.setConnectTimeout(5000);
@@ -778,7 +787,7 @@ static void fetchTask(void*) {
     Serial.printf("[fetch] start mask=0x%02X force=%lu\n", enabledMask,
                   (unsigned long)forceVal);
     fetchStocksImpl((bool)forceVal);
-    fetchWeatherImpl();
+    fetchWeatherImpl((bool)forceVal);
     Serial.printf("[fetch] end took=%lums\n", millis() - t0);
     fetching = false;
   }
@@ -2396,8 +2405,7 @@ void initBLE() {
   NimBLEDevice::init(bleDeviceName);
   NimBLEDevice::setMTU(512);
   // Passkey-entry bonding (bond + MITM + SC, DISPLAY_ONLY): iOS pops its
-  // native PIN dialog, served by onPassKeyRequest. Without MITM, any
-  // iPhone in range could bond silently.
+  // native PIN dialog, served by onPassKeyRequest.
   NimBLEDevice::setSecurityAuth(true, true, true);
   NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
   NimBLEServer* pServer = NimBLEDevice::createServer();
@@ -2640,8 +2648,4 @@ void loop() {
     lastFetch = millis();
     triggerFetch();
   }
-
-  // Yield so Core 1 light-sleeps between ticks instead of spinning at
-  // 100%; 1 ms of jitter is invisible at scroll cadence.
-  delay(1);
 }

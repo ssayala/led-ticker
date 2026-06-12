@@ -70,3 +70,7 @@ const int defaultLocationCount =
 
 // How often loop() triggers a stocks+weather fetch (5 minutes by default).
 #define FETCH_INTERVAL_MS (5 * 60 * 1000)
+
+// Weather changes slowly upstream — throttle it apart from the stock cadence
+// so it only hits the API every 30 minutes, not on every fetch tick.
+#define WEATHER_INTERVAL_MS (30 * 60 * 1000)
