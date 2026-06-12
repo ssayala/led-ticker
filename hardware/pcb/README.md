@@ -15,4 +15,4 @@ Carries the Freenove module + a MAX7219 matrix header on a single board. Designe
 | `EasyEDA_PCB.obj` / `EasyEDA_PCB.mtl` | 3D model + material |
 | `pcb.png` | 3D render |
 
-The board is footprint-specific to the **Freenove ESP32-S3-WROOM (FNK0099)** — see [Getting started](../GETTING_STARTED.md#hardware--wiring) for the matching wiring.
+The board is footprint-specific to the **Freenove ESP32-S3-WROOM (FNK0099)** — see [Getting started](../../GETTING_STARTED.md#hardware--wiring) for the matching wiring.
