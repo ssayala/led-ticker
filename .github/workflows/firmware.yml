@@ -69,36 +69,47 @@ jobs:
           files: dist/*.bin
           generate_release_notes: true
 
-  # The browser flasher fetches the binaries same-origin from the Pages site
-  # (GitHub release assets send no CORS headers, so a cross-origin fetch from
-  # ledticker.app is blocked). On each release tag, refresh the binaries
-  # committed under docs/firmware/ so the flasher always serves the latest.
+  # The browser flasher fetches the binaries same-origin from ledticker.app
+  # (GitHub release assets send no CORS headers, so a cross-origin fetch is
+  # blocked). The site lives in a separate private repo (led-ticker-site), so
+  # on each release tag we push the freshly built binaries there, where
+  # flash.html serves them same-origin. Auth is a write-scoped deploy key in
+  # the SITE_DEPLOY_KEY secret (its public half is a deploy key on that repo).
   sync-flasher:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - uses: actions/download-artifact@v4
+      - name: Download built binaries
+        uses: actions/download-artifact@v4
         with:
           name: firmware-esp32-s3
-          path: docs/firmware
+          path: bins
 
-      - name: Refresh flasher binaries + manifest version
+      - name: Push refreshed flasher binaries to the site repo
+        env:
+          SITE_DEPLOY_KEY: ${{ secrets.SITE_DEPLOY_KEY }}
         run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SITE_DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes"
+
+          version="${GITHUB_REF_NAME#v}"
+          git clone --depth 1 git@github.com:ssayala/led-ticker-site.git site
+          cp bins/*.bin site/firmware/
+          # Sync the manifest version to the tag (v0.4.3 -> 0.4.3) so the flash
+          # page shows the right release number.
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${version}\"/" site/firmware/manifest.json
+
+          cd site
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Sync the manifest version to the tag (v0.4.3 -> 0.4.3) so the
-          # flash page shows the right release number.
-          version="${GITHUB_REF_NAME#v}"
-          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${version}\"/" docs/firmware/manifest.json
-          git add docs/firmware/*.bin docs/firmware/manifest.json
+          git add firmware/*.bin firmware/manifest.json
           if git diff --cached --quiet; then
             echo "no changes"; exit 0
           fi
-          # [skip ci] so this push doesn't re-trigger the firmware workflow.
-          git commit -m "ci: refresh web flasher to ${GITHUB_REF_NAME} [skip ci]"
+          git commit -m "flasher: refresh to ${GITHUB_REF_NAME}"
           git push origin HEAD:main
