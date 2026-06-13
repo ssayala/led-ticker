@@ -66,7 +66,10 @@ const int defaultLocationCount =
 // characteristic) and persisted to NVS. Market hours are computed in ET
 // from UTC regardless of this setting.
 #define TIMEZONE "PST8PDT,M3.2.0,M11.1.0"
-#define NTP_SERVER "pool.ntp.org"
+// Anycast public NTP — no vendor-zone registration (unlike pool.ntp.org) and
+// no per-fleet obligation. Google primary smears leap seconds (no 23:59:60).
+#define NTP_SERVER_1 "time.google.com"
+#define NTP_SERVER_2 "time.cloudflare.com"
 
 // How often loop() triggers a stocks+weather fetch (5 minutes by default).
 #define FETCH_INTERVAL_MS (5 * 60 * 1000)

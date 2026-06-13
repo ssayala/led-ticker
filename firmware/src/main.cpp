@@ -475,7 +475,7 @@ void initTime() {
     return;
   }
 
-  configTzTime(nvsTimezone, NTP_SERVER);
+  configTzTime(nvsTimezone, NTP_SERVER_1, NTP_SERVER_2);
 
   Serial.println("Syncing NTP...");
   for (int i = 0; i < 20; i++) {
