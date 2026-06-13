@@ -22,7 +22,7 @@ pins in [`src/config.h`](src/config.h)).
 | Subsystem | Works? | Notes |
 |-----------|--------|-------|
 | Boot, serial, NVS | ✅ | Emulated flash persists within a session |
-| MAX7219 display + scrolling | ✅ | 4 chained modules via the `chain` attr |
+| MAX7219 display + scrolling | ✅ | 4 chained modules via the `chain` attr; `"layout": "fc16"` matches the DIYables hardware (`HARDWARE_TYPE` = `FC16_HW`) — omit it and columns render scrambled |
 | WS2812 status LED | ✅ | Lights blue during fetches |
 | WiFi + HTTP (stocks/weather) | ✅ | Joins `Wokwi-GUEST` with a real internet gateway |
 | **BLE / NimBLE control plane** | ❌ | **Not simulated** — no auth, sign mode, or config writes |
