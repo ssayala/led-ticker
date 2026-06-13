@@ -97,7 +97,7 @@ static int loadStringListFromNVS(const char* ns, const char* keyPrefix,
       prefs.getString(key, list + i * entryLen, entryLen);
     }
     prefs.end();
-    Serial.printf("Loaded %d %s from NVS\n", count, what);
+    Serial.printf("Loaded %d %s from NVS\r\n", count, what);
     return count;
   }
   prefs.end();
@@ -107,7 +107,7 @@ static int loadStringListFromNVS(const char* ns, const char* keyPrefix,
     list[(i + 1) * entryLen - 1] = '\0';
   }
   saveStringListToNVS(ns, keyPrefix, list, entryLen, seeded);
-  Serial.printf("Seeded %d %s from defaults\n", seeded, what);
+  Serial.printf("Seeded %d %s from defaults\r\n", seeded, what);
   return seeded;
 }
 
@@ -134,7 +134,7 @@ void loadWifiFromNVS() {
   if (hasSsid) {
     prefs.getString("ssid", nvsWifiSsid, WIFI_SSID_MAX);
     prefs.getString("pass", nvsWifiPass, WIFI_PASS_MAX);
-    Serial.printf("Loaded WiFi credentials from NVS (SSID: %s)\n", nvsWifiSsid);
+    Serial.printf("Loaded WiFi credentials from NVS (SSID: %s)\r\n", nvsWifiSsid);
   } else {
     nvsWifiSsid[0] = '\0';
     nvsWifiPass[0] = '\0';
@@ -205,7 +205,7 @@ static void generateAndSavePin() {
   uint32_t n = esp_random() % 1000000UL;
   snprintf(nvsPin, sizeof(nvsPin), "%06lu", (unsigned long)n);
   savePinToNVS();
-  Serial.printf("Generated new BLE auth PIN: %s\n", nvsPin);
+  Serial.printf("Generated new BLE auth PIN: %s\r\n", nvsPin);
 }
 
 void loadPinFromNVS() {
@@ -216,7 +216,7 @@ void loadPinFromNVS() {
     // Default to enforcing if the "on" key was never written (e.g. namespace
     // existed from an earlier build that only stored "code").
     nvsPinEnforce = prefs.getBool("on", true);
-    Serial.printf("Loaded BLE auth PIN from NVS: %s (enforce=%d)\n", nvsPin,
+    Serial.printf("Loaded BLE auth PIN from NVS: %s (enforce=%d)\r\n", nvsPin,
                   nvsPinEnforce);
   } else {
     nvsPin[0] = '\0';
@@ -368,7 +368,7 @@ void loadDisplayMaskFromNVS() {
     enabledMask = prefs.getUChar("mask", MASK_ALL) & MASK_ALL;
   }
   prefs.end();
-  Serial.printf("Display mask: 0x%02X\n", enabledMask);
+  Serial.printf("Display mask: 0x%02X\r\n", enabledMask);
 }
 
 // ============================================================================
@@ -392,7 +392,7 @@ void loadDisplaySettingsFromNVS() {
   displayBrightness = prefs.getUChar("bright", DISPLAY_INTENSITY);
   scrollSpeedMs = prefs.getUShort("scroll", SCROLL_SPEED);
   prefs.end();
-  Serial.printf("Display settings: brightness=%u scroll=%ums\n",
+  Serial.printf("Display settings: brightness=%u scroll=%ums\r\n",
                 displayBrightness, (unsigned)scrollSpeedMs);
 }
 
@@ -419,7 +419,7 @@ void loadTimezoneFromNVS() {
     prefs.getString("tz", nvsTimezone, MAX_TZ_LEN);
   }
   prefs.end();
-  Serial.printf("Timezone: %s\n", nvsTimezone);
+  Serial.printf("Timezone: %s\r\n", nvsTimezone);
 }
 
 // ============================================================================
@@ -527,7 +527,7 @@ void initTime() {
     struct tm t;
     if (getLocalTime(&t, 100)) {
       timeReady = true;
-      Serial.printf("Time: %04d-%02d-%02d %02d:%02d local\n", t.tm_year + 1900,
+      Serial.printf("Time: %04d-%02d-%02d %02d:%02d local\r\n", t.tm_year + 1900,
                     t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min);
       return;
     }
@@ -620,7 +620,7 @@ static void fetchStocksImpl(bool force) {
 
     int code = http.GET();
     if (code != 200) {
-      Serial.printf("Stock HTTP error: %d for %s\n", code, nvsTickers[i]);
+      Serial.printf("Stock HTTP error: %d for %s\r\n", code, nvsTickers[i]);
       http.end();
       continue;
     }
@@ -629,7 +629,7 @@ static void fetchStocksImpl(bool force) {
     DeserializationError err = deserializeJson(doc, http.getStream());
     http.end();
     if (err) {
-      Serial.printf("Stock JSON parse error: %s for %s\n", err.c_str(),
+      Serial.printf("Stock JSON parse error: %s for %s\r\n", err.c_str(),
                     nvsTickers[i]);
       continue;
     }
@@ -648,7 +648,7 @@ static void fetchStocksImpl(bool force) {
 
   if (count > 0) {
     commitStocks(tmp, count);
-    Serial.printf("Loaded %d stock quotes\n", count);
+    Serial.printf("Loaded %d stock quotes\r\n", count);
   }
 }
 
@@ -698,7 +698,7 @@ static void fetchWeatherImpl(bool force) {
     http.setUserAgent(WEATHER_USER_AGENT);
     int code = http.GET();
     if (code != 200) {
-      Serial.printf("Weather HTTP error: %d for %s\n", code, resolved[i].name);
+      Serial.printf("Weather HTTP error: %d for %s\r\n", code, resolved[i].name);
       http.end();
       continue;
     }
@@ -713,7 +713,7 @@ static void fetchWeatherImpl(bool force) {
         doc, http.getStream(), DeserializationOption::Filter(filter));
     http.end();
     if (err) {
-      Serial.printf("Weather JSON parse error: %s for %s\n", err.c_str(),
+      Serial.printf("Weather JSON parse error: %s for %s\r\n", err.c_str(),
                     resolved[i].name);
       continue;
     }
@@ -723,7 +723,7 @@ static void fetchWeatherImpl(bool force) {
     JsonVariant tempC = doc["properties"]["timeseries"][0]["data"]["instant"]
                            ["details"]["air_temperature"];
     if (tempC.isNull()) {
-      Serial.printf("Weather: no temperature for %s\n", resolved[i].name);
+      Serial.printf("Weather: no temperature for %s\r\n", resolved[i].name);
       continue;
     }
 
@@ -735,7 +735,7 @@ static void fetchWeatherImpl(bool force) {
 
   if (count > 0) {
     commitWeather(tmp, count);
-    Serial.printf("Loaded %d weather entries\n", count);
+    Serial.printf("Loaded %d weather entries\r\n", count);
   }
 }
 
@@ -749,11 +749,11 @@ static void fetchTask(void*) {
     if (enabledMask == 0) continue;
     fetching = true;
     unsigned long t0 = millis();
-    Serial.printf("[fetch] start mask=0x%02X force=%lu\n", enabledMask,
+    Serial.printf("[fetch] start mask=0x%02X force=%lu\r\n", enabledMask,
                   (unsigned long)forceVal);
     fetchStocksImpl((bool)forceVal);
     fetchWeatherImpl((bool)forceVal);
-    Serial.printf("[fetch] end took=%lums\n", millis() - t0);
+    Serial.printf("[fetch] end took=%lums\r\n", millis() - t0);
     fetching = false;
   }
 }
@@ -769,7 +769,7 @@ void triggerFetch(bool force = false) {
 void connectWifi() {
   if (!wifiConfigured() || WiFi.status() == WL_CONNECTED) return;
 
-  Serial.printf("Connecting to %s...\n", nvsWifiSsid);
+  Serial.printf("Connecting to %s...\r\n", nvsWifiSsid);
   WiFi.begin(nvsWifiSsid, nvsWifiPass);
 
   for (int attempts = 0; WiFi.status() != WL_CONNECTED && attempts < 20;
@@ -779,7 +779,7 @@ void connectWifi() {
 
   if (WiFi.status() == WL_CONNECTED) {
     IPAddress ip = WiFi.localIP();
-    Serial.printf("Connected, IP: %u.%u.%u.%u\n", ip[0], ip[1], ip[2], ip[3]);
+    Serial.printf("Connected, IP: %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2], ip[3]);
   } else {
     Serial.println("WiFi failed");
   }
@@ -1065,7 +1065,7 @@ void exitSetupIfReady() {
   enterContent();
   char buf[64];
   formatModeName(buf, sizeof(buf));
-  Serial.printf("Prereqs satisfied, exiting to %s\n", buf);
+  Serial.printf("Prereqs satisfied, exiting to %s\r\n", buf);
 }
 
 void showNextSetup() {
@@ -1158,7 +1158,7 @@ bool checkStatusForRender() {
   // to int32_t is negative.
   if ((int32_t)(millis() - statusExpiresAt) < 0) return true;
 
-  Serial.printf("Status: \"%s\" expired, clearing\n", activeStatusText);
+  Serial.printf("Status: \"%s\" expired, clearing\r\n", activeStatusText);
   clearStatus();
   invalidateStatusRender();
   resumeAmbient();  // enter*() helpers clear the display on transition
@@ -1251,7 +1251,7 @@ static void startTimer(uint32_t minutes) {
   timerPhase = TIMER_RUN;
   display.displayClear();
   display.setIntensity(displayBrightness);
-  Serial.printf("Timer: started for %lu min\n", (unsigned long)minutes);
+  Serial.printf("Timer: started for %lu min\r\n", (unsigned long)minutes);
 }
 
 static void cancelTimer() {
@@ -1469,7 +1469,7 @@ bool isConnAuthed(uint16_t handle) {
 class ServerCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer*, ble_gap_conn_desc* desc) override {
     AuthSlot* s = allocSlot(desc->conn_handle);
-    Serial.printf("BLE: client connected (handle=%u, slot=%s, encrypted=%d)\n",
+    Serial.printf("BLE: client connected (handle=%u, slot=%s, encrypted=%d)\r\n",
                   desc->conn_handle, s ? "ok" : "FULL",
                   desc->sec_state.encrypted);
     if (s && desc->sec_state.encrypted) {
@@ -1487,7 +1487,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     NimBLEDevice::startAdvertising();
   }
   void onAuthenticationComplete(ble_gap_conn_desc* desc) override {
-    Serial.printf("BLE auth: pairing complete (handle=%u, encrypted=%d)\n",
+    Serial.printf("BLE auth: pairing complete (handle=%u, encrypted=%d)\r\n",
                   desc->conn_handle, desc->sec_state.encrypted);
     AuthSlot* s = findSlot(desc->conn_handle);
     if (desc->sec_state.encrypted) {
@@ -1500,14 +1500,14 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     if (s && s->authed) return;
     Serial.printf(
         "BLE auth: pairing not completed and no PIN auth — "
-        "dropping conn=%u\n",
+        "dropping conn=%u\r\n",
         desc->conn_handle);
     NimBLEDevice::getServer()->disconnect(desc->conn_handle);
   }
   uint32_t onPassKeyRequest() override {
     // SMP compares this against what the user typed on iOS.
     uint32_t key = (uint32_t)strtoul(nvsPin, nullptr, 10);
-    Serial.printf("BLE auth: passkey requested, serving %06u\n", (unsigned)key);
+    Serial.printf("BLE auth: passkey requested, serving %06u\r\n", (unsigned)key);
     return key;
   }
 };
@@ -1537,7 +1537,7 @@ class GatedStashCallbacks : public NimBLECharacteristicCallbacks {
 
   void onWrite(NimBLECharacteristic* pChar, ble_gap_conn_desc* desc) override {
     if (!isConnAuthed(desc->conn_handle)) {
-      Serial.printf("BLE %s: unauthed, ignoring\n", label);
+      Serial.printf("BLE %s: unauthed, ignoring\r\n", label);
       return;
     }
     setupLastActivityMs = millis();
@@ -1597,7 +1597,7 @@ void applyPendingWifi() {
   nvsWifiPass[WIFI_PASS_MAX - 1] = '\0';
   saveWifiToNVS();
 
-  Serial.printf("BLE wifi: reconnecting to \"%s\"\n", nvsWifiSsid);
+  Serial.printf("BLE wifi: reconnecting to \"%s\"\r\n", nvsWifiSsid);
   WiFi.disconnect();
   connectWifi();
   // initTime() guards on WiFi.status() — no-op if the reconnect didn't take.
@@ -1862,7 +1862,7 @@ void applyPendingMode() {
   modeUpdatePending = false;
   uint8_t mask = parseModePayload(pendingModeStr);
   if (mask == 0) {
-    Serial.printf("BLE: unknown/empty mode \"%s\", ignoring\n", pendingModeStr);
+    Serial.printf("BLE: unknown/empty mode \"%s\", ignoring\r\n", pendingModeStr);
     return;
   }
   if (mask == MASK_NONE_REQUEST) {
@@ -1883,7 +1883,7 @@ void applyPendingMode() {
   }
   char buf[64];
   formatModeName(buf, sizeof(buf));
-  Serial.printf("BLE: mode -> %s\n", buf);
+  Serial.printf("BLE: mode -> %s\r\n", buf);
 }
 
 // ----------------------------------------------------------------------------
@@ -1979,14 +1979,14 @@ void applyPendingStatus() {
 
   if (secs == 0) {
     statusExpiresAt = UINT32_MAX;
-    Serial.printf("BLE status: \"%s\" indefinite\n", activeStatusText);
+    Serial.printf("BLE status: \"%s\" indefinite\r\n", activeStatusText);
   } else {
     // millis()-based: relative timing works without WiFi/NTP. Avoid the
     // 0 and UINT32_MAX sentinels in the unlikely target collision.
     uint32_t target = millis() + secs * 1000UL;
     if (target == 0 || target == UINT32_MAX) target = 1;
     statusExpiresAt = target;
-    Serial.printf("BLE status: \"%s\" for %lus\n", activeStatusText, secs);
+    Serial.printf("BLE status: \"%s\" for %lus\r\n", activeStatusText, secs);
   }
   // A new text sign takes over the override slot from any running timer.
   if (timerPhase != TIMER_OFF) {
@@ -2074,7 +2074,7 @@ void applyPendingPower() {
   } else if (strcmp(tok, "on") == 0) {
     setPower(false);
   } else {
-    Serial.printf("BLE power: unknown value \"%s\", ignoring\n",
+    Serial.printf("BLE power: unknown value \"%s\", ignoring\r\n",
                   pendingPowerStr);
   }
 }
@@ -2116,7 +2116,7 @@ void applyPendingDisplayCfg() {
 
   char* sep = strchr(buf, '|');
   if (!sep) {
-    Serial.printf("BLE display: malformed \"%s\", ignoring\n", buf);
+    Serial.printf("BLE display: malformed \"%s\", ignoring\r\n", buf);
     return;
   }
   *sep = '\0';
@@ -2125,7 +2125,7 @@ void applyPendingDisplayCfg() {
   long bright = strtol(buf, &endB, 10);
   long scroll = strtol(sep + 1, &endS, 10);
   if (endB == buf || endS == sep + 1) {
-    Serial.printf("BLE display: non-numeric \"%s|%s\", ignoring\n", buf,
+    Serial.printf("BLE display: non-numeric \"%s|%s\", ignoring\r\n", buf,
                   sep + 1);
     return;
   }
@@ -2143,7 +2143,7 @@ void applyPendingDisplayCfg() {
   // mode's fixed SETUP_SCROLL_SPEED.
   display.setIntensity(displayBrightness);
   if (currentMode != MODE_SETUP) display.setSpeed(scrollSpeedMs);
-  Serial.printf("BLE display: brightness=%u scroll=%ums\n", displayBrightness,
+  Serial.printf("BLE display: brightness=%u scroll=%ums\r\n", displayBrightness,
                 (unsigned)scrollSpeedMs);
 }
 
@@ -2176,7 +2176,7 @@ void applyPendingTimezone() {
   // malformed string falls back to UTC rendering, which is visible and
   // recoverable over BLE.
   if (!isalpha((unsigned char)pendingTzStr[0])) {
-    Serial.printf("BLE timezone: rejecting \"%s\"\n", pendingTzStr);
+    Serial.printf("BLE timezone: rejecting \"%s\"\r\n", pendingTzStr);
     return;
   }
 
@@ -2189,7 +2189,7 @@ void applyPendingTimezone() {
   setenv("TZ", nvsTimezone, 1);
   tzset();
   staticClockLastMin = -1;  // repaint the steady clock now, not next minute
-  Serial.printf("BLE timezone: %s\n", nvsTimezone);
+  Serial.printf("BLE timezone: %s\r\n", nvsTimezone);
 }
 
 // ----------------------------------------------------------------------------
@@ -2224,16 +2224,16 @@ class AuthCallbacks : public NimBLECharacteristicCallbacks {
       s->authed = true;
       s->failCount = 0;
       s->lockoutUntilMs = 0;
-      Serial.printf("BLE auth: conn=%u authenticated\n", desc->conn_handle);
+      Serial.printf("BLE auth: conn=%u authenticated\r\n", desc->conn_handle);
     } else {
       s->failCount++;
-      Serial.printf("BLE auth: bad PIN from conn=%u (fail %u/%u)\n",
+      Serial.printf("BLE auth: bad PIN from conn=%u (fail %u/%u)\r\n",
                     desc->conn_handle, s->failCount, AUTH_FAIL_THRESHOLD);
       if (s->failCount >= AUTH_FAIL_THRESHOLD) {
         s->lockoutUntilMs = millis() + AUTH_LOCKOUT_MS;
         if (s->lockoutUntilMs == 0) s->lockoutUntilMs = 1;  // avoid sentinel
         s->failCount = 0;
-        Serial.printf("BLE auth: conn=%u locked out for %ums\n",
+        Serial.printf("BLE auth: conn=%u locked out for %ums\r\n",
                       desc->conn_handle, AUTH_LOCKOUT_MS);
       }
     }
@@ -2312,7 +2312,7 @@ static void wipeAllNvs() {
 // reboot; the fresh boot reseeds defaults, generates a new PIN, and lands
 // in setup mode.
 static void factoryReset(const char* source) {
-  Serial.printf("%s: factory reset — wiping NVS and rebooting\n", source);
+  Serial.printf("%s: factory reset — wiping NVS and rebooting\r\n", source);
   wipeAllNvs();
   delay(100);  // let the Serial print drain before restart
   ESP.restart();
@@ -2333,12 +2333,12 @@ void applyPendingCmd() {
     bool on = strcmp(mode, "on") == 0;
     bool off = strcmp(mode, "off") == 0;
     if (!on && !off) {
-      Serial.printf("BLE cmd: unknown pin-enforce mode \"%s\"\n", mode);
+      Serial.printf("BLE cmd: unknown pin-enforce mode \"%s\"\r\n", mode);
       return;
     }
     nvsPinEnforce = on;
     savePinEnforceToNVS();
-    Serial.printf("BLE cmd: pin enforce %s\n", mode);
+    Serial.printf("BLE cmd: pin enforce %s\r\n", mode);
     // Connected slots keep their authed state — no surprise-kick when
     // enforcement flips on.
   } else if (strncmp(pendingCmd, "timer ", 6) == 0) {
@@ -2352,13 +2352,13 @@ void applyPendingCmd() {
       char* end = nullptr;
       long mins = strtol(arg, &end, 10);
       if (end == arg || mins < 1 || mins > TIMER_MAX_MINUTES) {
-        Serial.printf("BLE cmd: bad timer arg \"%s\"\n", arg);
+        Serial.printf("BLE cmd: bad timer arg \"%s\"\r\n", arg);
       } else {
         startTimer((uint32_t)mins);
       }
     }
   } else {
-    Serial.printf("BLE cmd: unknown command \"%s\"\n", pendingCmd);
+    Serial.printf("BLE cmd: unknown command \"%s\"\r\n", pendingCmd);
   }
 }
 
@@ -2439,7 +2439,7 @@ void initBLE() {
   NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
   pAdv->addServiceUUID(BLE_SERVICE_UUID);
   pAdv->start();
-  Serial.printf("BLE advertising as %s\n", bleDeviceName);
+  Serial.printf("BLE advertising as %s\r\n", bleDeviceName);
 }
 
 // ============================================================================
@@ -2499,6 +2499,20 @@ static bool pollResetButton() {
   return false;
 }
 
+// ESP-IDF/ARDUHAL logs (the "[E][...]" lines) emit a bare '\n'; translate to
+// '\r\n' so raw terminals (Wokwi) don't stair-step. Our own Serial.printf
+// strings already carry '\r\n'.
+static int crlfLogVprintf(const char* fmt, va_list args) {
+  char buf[256];
+  int n = vsnprintf(buf, sizeof(buf), fmt, args);
+  int lim = (n < (int)sizeof(buf)) ? n : (int)sizeof(buf) - 1;
+  for (int i = 0; i < lim; i++) {
+    if (buf[i] == '\n') Serial.write('\r');
+    Serial.write((uint8_t)buf[i]);
+  }
+  return n;
+}
+
 void setup() {
   Serial.begin(115200);
   // USB-CDC default is a 250 ms blocking write timeout — headless, every
@@ -2508,7 +2522,20 @@ void setup() {
   // monitor; falls through so a headless boot isn't wedged.
   unsigned long serialWaitStart = millis();
   while (!Serial && millis() - serialWaitStart < 2000) delay(10);
-  Serial.printf("LED-Ticker firmware v%s\n", FW_VERSION);
+  esp_log_set_vprintf(crlfLogVprintf);  // CRLF for library [E]/[W]/[I] logs
+  Serial.printf("LED-Ticker firmware v%s\r\n", FW_VERSION);
+  // Boot diagnostic: categorize the last reset (POWERON/EXT=external,
+  // SW=ESP.restart, PANIC=crash, INT_WDT/TASK_WDT=watchdog, BROWNOUT).
+  {
+    static const char* kRst[] = {"UNKNOWN", "POWERON",  "EXT",      "SW",
+                                 "PANIC",   "INT_WDT",  "TASK_WDT", "WDT",
+                                 "DEEPSLEEP", "BROWNOUT", "SDIO"};
+    esp_reset_reason_t rr = esp_reset_reason();
+    Serial.printf("[boot] reset reason: %s (%d)\r\n",
+                  (rr < (int)(sizeof(kRst) / sizeof(kRst[0]))) ? kRst[rr]
+                                                               : "?",
+                  (int)rr);
+  }
 
   dataMutex = xSemaphoreCreateMutex();
   xTaskCreatePinnedToCore(fetchTask, "fetchStocks", FETCH_TASK_STACK, nullptr,
@@ -2563,20 +2590,20 @@ static void consoleSetPending(char* dest, size_t destLen, const char* src,
 }
 
 static void consolePrintInfo() {
-  Serial.printf("fw=v%s mode=%d mask=0x%02X\n", FW_VERSION, currentMode,
+  Serial.printf("fw=v%s mode=%d mask=0x%02X\r\n", FW_VERSION, currentMode,
                 enabledMask);
   bool up = WiFi.isConnected();
-  Serial.printf("wifi=%s ip=%s\n", up ? "connected" : "disconnected",
+  Serial.printf("wifi=%s ip=%s\r\n", up ? "connected" : "disconnected",
                 up ? WiFi.localIP().toString().c_str() : "-");
-  Serial.printf("pin=%s enforce=%s\n", nvsPin, nvsPinEnforce ? "on" : "off");
-  Serial.printf("bright=%u scroll=%ums timer=%s\n", displayBrightness,
+  Serial.printf("pin=%s enforce=%s\r\n", nvsPin, nvsPinEnforce ? "on" : "off");
+  Serial.printf("bright=%u scroll=%ums timer=%s\r\n", displayBrightness,
                 (unsigned)scrollSpeedMs,
                 timerPhase != TIMER_OFF ? "running" : "off");
 }
 
 static void consolePrintHelp() {
   Serial.println(
-      "cmds: wifi <ssid> <pass> | apikey <key> | tickers <csv> | "
+      "cmds: wifi <ssid> [pass] | apikey <key> | tickers <csv> | "
       "locations <lat,lon,label;..> | mode <all|none|csv> | sign <text> | "
       "power <on|off> | bright <0-15> | scroll <ms> | tz <posix> | "
       "timer <min|cancel> | pin-enforce <on|off> | reload | reset | info | help");
@@ -2597,21 +2624,24 @@ static void dispatchConsoleCmd(const ConsoleCmd& cmd) {
       return;
 
     case CONSOLE_WIFI: {
-      // BLE buffer wants "ssid|pass"; split arg on the first space.
-      const char* sp = strchr(cmd.arg, ' ');
-      if (!sp || sp == cmd.arg || *(sp + 1) == '\0') {
-        Serial.println("usage: wifi <ssid> <pass>");
+      // applyPendingWifi() wants "ssid|pass". "wifi <ssid>" = open network
+      // (empty password, e.g. Wokwi-GUEST); "wifi <ssid> <pass>" splits on the
+      // first space, so the SSID can't contain a space but the password can.
+      if (cmd.arg[0] == '\0') {
+        Serial.println("usage: wifi <ssid> [pass]");
         return;
       }
+      const char* sp = strchr(cmd.arg, ' ');
+      size_t ssidLen = sp ? (size_t)(sp - cmd.arg) : strlen(cmd.arg);
+      const char* pass = sp ? sp + 1 : "";
       char joined[BLE_WIFI_BUF_LEN];
-      size_t ssidLen = (size_t)(sp - cmd.arg);
       if (ssidLen >= sizeof(joined) - 2) {
         Serial.println("error: ssid too long");
         return;
       }
       memcpy(joined, cmd.arg, ssidLen);
       joined[ssidLen] = '|';
-      strncpy(joined + ssidLen + 1, sp + 1, sizeof(joined) - ssidLen - 2);
+      strncpy(joined + ssidLen + 1, pass, sizeof(joined) - ssidLen - 2);
       joined[sizeof(joined) - 1] = '\0';
       consoleSetPending(pendingWifiStr, sizeof(pendingWifiStr), joined,
                         wifiUpdatePending);
@@ -2638,11 +2668,20 @@ static void dispatchConsoleCmd(const ConsoleCmd& cmd) {
                         modeUpdatePending);
       Serial.println("ok: mode");
       return;
-    case CONSOLE_SIGN:
-      consoleSetPending(pendingStatusStr, sizeof(pendingStatusStr), cmd.arg,
+    case CONSOLE_SIGN: {
+      // applyPendingStatus() expects "text|seconds" (0 = indefinite); console
+      // signs are indefinite. Empty text ("sign" with no arg) clears the sign.
+      char buf[BLE_STATUS_BUF_LEN];
+      int n = snprintf(buf, sizeof(buf), "%s|0", cmd.arg);
+      if (n < 0 || n >= (int)sizeof(buf)) {
+        Serial.println("error: sign text too long");
+        return;
+      }
+      consoleSetPending(pendingStatusStr, sizeof(pendingStatusStr), buf,
                         statusUpdatePending);
       Serial.println("ok: sign");
       return;
+    }
     case CONSOLE_POWER:
       consoleSetPending(pendingPowerStr, sizeof(pendingPowerStr), cmd.arg,
                         powerUpdatePending);
@@ -2723,19 +2762,29 @@ void pollSerialConsole() {
   while (Serial.available()) {
     char c = (char)Serial.read();
     if (c == '\n' || c == '\r') {
+      // len == 0 here is a blank line or the paired \n of a \r\n — swallow it
+      // (no echo) so a \r\n terminator doesn't print two newlines.
       if (overflow) {
+        Serial.println();
         Serial.println("error: line too long");
         overflow = false;
         len = 0;
       } else if (len > 0) {
+        Serial.println();  // echo the newline before printing the response
         line[len] = '\0';
         dispatchConsoleCmd(parseConsoleLine(line));
         len = 0;
+      }
+    } else if (c == '\b' || c == 0x7f) {  // backspace / DEL: erase last char
+      if (!overflow && len > 0) {
+        len--;
+        Serial.print("\b \b");
       }
     } else if (overflow) {
       continue;  // swallow the rest of an over-long line
     } else if (len < sizeof(line) - 1) {
       line[len++] = c;
+      Serial.write(c);  // local echo so the user sees what they type
     } else {
       overflow = true;
     }
@@ -2750,7 +2799,7 @@ void loop() {
   if (nowMs - lastHeartbeatMs > 30000) {
     lastHeartbeatMs = nowMs;
     Serial.printf(
-        "[hb] v%s mode=%d mask=0x%02X fetching=%d heap=%u min=%u millis=%lu\n",
+        "[hb] v%s mode=%d mask=0x%02X fetching=%d heap=%u min=%u millis=%lu\r\n",
         FW_VERSION, currentMode, enabledMask, fetching,
         (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMinFreeHeap(), nowMs);
   }
