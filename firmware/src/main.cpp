@@ -10,6 +10,7 @@
 #include <time.h>
 
 #include "config.h"
+#include "console.h"
 #include "version.h"
 
 // ============================================================================
@@ -2544,6 +2545,195 @@ void setup() {
   lastFetch = millis();
 }
 
+// ----------------------------------------------------------------------------
+// Serial console — dev/test input path mirroring the BLE control plane.
+// Each verb writes the same pending* buffer + *UpdatePending flag the BLE
+// callbacks use, so loop()'s applyPending*() does the work. Bypasses the PIN
+// gate and the command cooldown: physical USB access already allows reflashing
+// the chip, so the console grants no privilege an attacker wouldn't have.
+// Runs in loop() on Core 1 — safe to set flags and read display globals; it
+// never calls neopixelWrite().
+// ----------------------------------------------------------------------------
+
+static void consoleSetPending(char* dest, size_t destLen, const char* src,
+                              volatile bool& flag) {
+  strncpy(dest, src, destLen - 1);
+  dest[destLen - 1] = '\0';
+  flag = true;
+}
+
+static void consolePrintInfo() {
+  Serial.printf("fw=v%s mode=%d mask=0x%02X\n", FW_VERSION, currentMode,
+                enabledMask);
+  bool up = WiFi.isConnected();
+  Serial.printf("wifi=%s ip=%s\n", up ? "connected" : "disconnected",
+                up ? WiFi.localIP().toString().c_str() : "-");
+  Serial.printf("pin=%s enforce=%s\n", nvsPin, nvsPinEnforce ? "on" : "off");
+  Serial.printf("bright=%u scroll=%ums timer=%s\n", displayBrightness,
+                (unsigned)scrollSpeedMs,
+                timerPhase != TIMER_OFF ? "running" : "off");
+}
+
+static void consolePrintHelp() {
+  Serial.println(
+      "cmds: wifi <ssid> <pass> | apikey <key> | tickers <csv> | "
+      "locations <lat,lon,label;..> | mode <all|none|csv> | sign <text> | "
+      "power <on|off> | bright <0-15> | scroll <ms> | tz <posix> | "
+      "timer <min|cancel> | pin-enforce <on|off> | reload | reset | info | help");
+}
+
+static void dispatchConsoleCmd(const ConsoleCmd& cmd) {
+  switch (cmd.verb) {
+    case CONSOLE_NONE:
+      return;
+    case CONSOLE_UNKNOWN:
+      Serial.println("error: unknown command (try 'help')");
+      return;
+    case CONSOLE_HELP:
+      consolePrintHelp();
+      return;
+    case CONSOLE_INFO:
+      consolePrintInfo();
+      return;
+
+    case CONSOLE_WIFI: {
+      // BLE buffer wants "ssid|pass"; split arg on the first space.
+      const char* sp = strchr(cmd.arg, ' ');
+      if (!sp || sp == cmd.arg || *(sp + 1) == '\0') {
+        Serial.println("usage: wifi <ssid> <pass>");
+        return;
+      }
+      char joined[BLE_WIFI_BUF_LEN];
+      size_t ssidLen = (size_t)(sp - cmd.arg);
+      if (ssidLen >= sizeof(joined) - 2) {
+        Serial.println("error: ssid too long");
+        return;
+      }
+      memcpy(joined, cmd.arg, ssidLen);
+      joined[ssidLen] = '|';
+      strncpy(joined + ssidLen + 1, sp + 1, sizeof(joined) - ssidLen - 2);
+      joined[sizeof(joined) - 1] = '\0';
+      consoleSetPending(pendingWifiStr, sizeof(pendingWifiStr), joined,
+                        wifiUpdatePending);
+      Serial.println("ok: wifi");
+      return;
+    }
+    case CONSOLE_APIKEY:
+      consoleSetPending(pendingApiKey, sizeof(pendingApiKey), cmd.arg,
+                        apiKeyUpdatePending);
+      Serial.println("ok: apikey");
+      return;
+    case CONSOLE_TICKERS:
+      consoleSetPending(pendingTickerStr, sizeof(pendingTickerStr), cmd.arg,
+                        tickerUpdatePending);
+      Serial.println("ok: tickers");
+      return;
+    case CONSOLE_LOCATIONS:
+      consoleSetPending(pendingLocsStr, sizeof(pendingLocsStr), cmd.arg,
+                        locsUpdatePending);
+      Serial.println("ok: locations");
+      return;
+    case CONSOLE_MODE:
+      consoleSetPending(pendingModeStr, sizeof(pendingModeStr), cmd.arg,
+                        modeUpdatePending);
+      Serial.println("ok: mode");
+      return;
+    case CONSOLE_SIGN:
+      consoleSetPending(pendingStatusStr, sizeof(pendingStatusStr), cmd.arg,
+                        statusUpdatePending);
+      Serial.println("ok: sign");
+      return;
+    case CONSOLE_POWER:
+      consoleSetPending(pendingPowerStr, sizeof(pendingPowerStr), cmd.arg,
+                        powerUpdatePending);
+      Serial.println("ok: power");
+      return;
+    case CONSOLE_TZ:
+      consoleSetPending(pendingTzStr, sizeof(pendingTzStr), cmd.arg,
+                        tzUpdatePending);
+      Serial.println("ok: tz");
+      return;
+
+    case CONSOLE_BRIGHT: {
+      // applyPendingDisplayCfg() expects "bright|scroll"; keep current scroll.
+      char buf[sizeof(pendingDisplayCfgStr)];
+      snprintf(buf, sizeof(buf), "%s|%u", cmd.arg, (unsigned)scrollSpeedMs);
+      consoleSetPending(pendingDisplayCfgStr, sizeof(pendingDisplayCfgStr), buf,
+                        displayCfgUpdatePending);
+      Serial.println("ok: bright");
+      return;
+    }
+    case CONSOLE_SCROLL: {
+      char buf[sizeof(pendingDisplayCfgStr)];
+      snprintf(buf, sizeof(buf), "%u|%s", displayBrightness, cmd.arg);
+      consoleSetPending(pendingDisplayCfgStr, sizeof(pendingDisplayCfgStr), buf,
+                        displayCfgUpdatePending);
+      Serial.println("ok: scroll");
+      return;
+    }
+
+    // Command-style verbs route through pendingCmd (16-byte buffer).
+    case CONSOLE_TIMER: {
+      char buf[sizeof(pendingCmd)];
+      int n = snprintf(buf, sizeof(buf), "timer %s", cmd.arg);
+      if (n < 0 || n >= (int)sizeof(buf)) {
+        Serial.println("error: timer arg too long");
+        return;
+      }
+      consoleSetPending(pendingCmd, sizeof(pendingCmd), buf, cmdPending);
+      Serial.println("ok: timer");
+      return;
+    }
+    case CONSOLE_PINENFORCE: {
+      char buf[sizeof(pendingCmd)];
+      int n = snprintf(buf, sizeof(buf), "pin-enforce %s", cmd.arg);
+      if (n < 0 || n >= (int)sizeof(buf)) {
+        Serial.println("error: pin-enforce arg too long");
+        return;
+      }
+      consoleSetPending(pendingCmd, sizeof(pendingCmd), buf, cmdPending);
+      Serial.println("ok: pin-enforce");
+      return;
+    }
+    case CONSOLE_RELOAD:
+      consoleSetPending(pendingCmd, sizeof(pendingCmd), "reload", cmdPending);
+      Serial.println("ok: reload");
+      return;
+    case CONSOLE_RESET:
+      consoleSetPending(pendingCmd, sizeof(pendingCmd), "reset", cmdPending);
+      Serial.println("ok: reset");
+      return;
+  }
+}
+
+// Non-blocking: accumulate one line, then parse + dispatch. Buffer sized to the
+// largest payload (locations CSV) plus the verb word and separators.
+void pollSerialConsole() {
+  static char line[BLE_LOCS_BUF_LEN + 32];
+  static size_t len = 0;
+  static bool overflow = false;
+  while (Serial.available()) {
+    char c = (char)Serial.read();
+    if (c == '\n' || c == '\r') {
+      if (overflow) {
+        Serial.println("error: line too long");
+        overflow = false;
+        len = 0;
+      } else if (len > 0) {
+        line[len] = '\0';
+        dispatchConsoleCmd(parseConsoleLine(line));
+        len = 0;
+      }
+    } else if (overflow) {
+      continue;  // swallow the rest of an over-long line
+    } else if (len < sizeof(line) - 1) {
+      line[len++] = c;
+    } else {
+      overflow = true;
+    }
+  }
+}
+
 void loop() {
   // Heartbeat: matrix frozen but heartbeats coming → SPI/Parola stuck;
   // heartbeats stopped → whole loop hung.
@@ -2557,6 +2747,7 @@ void loop() {
         (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMinFreeHeap(), nowMs);
   }
 
+  pollSerialConsole();  // serial console feeds the same pending* flags below
   if (wifiUpdatePending) applyPendingWifi();
   if (apiKeyUpdatePending) applyPendingApiKey();
   if (cmdPending) applyPendingCmd();
