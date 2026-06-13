@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "author": "Sunil Sayala",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-s3-devkitc-1",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-max7219-matrix",
+      "id": "matrix",
+      "top": -150,
+      "left": 130,
+      "attrs": { "chain": "4", "layout": "fc16" }
+    },
+    {
+      "type": "wokwi-neopixel",
+      "id": "statusled",
+      "top": 110,
+      "left": 160,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [ "esp:6", "matrix:DIN", "green", [] ],
+    [ "esp:4", "matrix:CLK", "yellow", [] ],
+    [ "esp:5", "matrix:CS", "blue", [] ],
+    [ "esp:5V", "matrix:VCC", "red", [] ],
+    [ "esp:GND.1", "matrix:GND", "black", [] ],
+
+    [ "esp:48", "statusled:DIN", "green", [] ],
+    [ "esp:3V3.2", "statusled:VDD", "red", [] ],
+    [ "esp:GND.2", "statusled:VSS", "black", [] ]
+  ]
+}

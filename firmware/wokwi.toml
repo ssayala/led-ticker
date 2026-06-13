@@ -1,0 +1,6 @@
+[wokwi]
+version = 1
+# Built by `pio run -d firmware`. Re-run a build before simulating so these
+# point at fresh artifacts. Paths are relative to this file (firmware/).
+firmware = '.pio/build/esp32-s3/firmware.bin'
+elf = '.pio/build/esp32-s3/firmware.elf'

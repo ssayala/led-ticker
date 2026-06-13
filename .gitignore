@@ -1,8 +1,4 @@
 firmware/src/secrets.h
-# Wokwi simulator config (local only)
-firmware/WOKWI.md
-firmware/diagram.json
-firmware/wokwi.toml
 .pio
 .vscode/
 tools/__pycache__/
