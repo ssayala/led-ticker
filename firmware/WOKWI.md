@@ -32,11 +32,17 @@ Because BLE provisioning is unavailable, a fresh sim boots with empty NVS →
 
 ## Exercising the weather/stock fetch path
 
-The fetch path needs WiFi creds and a Finnhub key in NVS, which are normally
-written over BLE. For sim-only testing, temporarily seed them at boot (e.g. in
-`setup()` after `prefs` init, guarded by a `#ifdef WOKWI_SIM`) using SSID
-`Wokwi-GUEST` and an empty password — **never commit real secrets**. Then the
-ambient rotation runs against live Finnhub/Open-Meteo.
+The **serial console** (see [`FIRMWARE_GUIDE.md`](FIRMWARE_GUIDE.md) →
+"Serial console") is the recommended way to set the API key and other settings
+in the sim — BLE isn't available, but serial is. In the Wokwi serial monitor
+type `apikey <key>`, `tickers AAPL,MSFT`, etc., then watch the `[fetch]` lines.
+
+For WiFi, `Wokwi-GUEST` uses an **empty password**, which the `wifi` console
+command rejects (it requires a non-empty password field). The easiest workaround
+is to seed WiFi at boot: in `setup()` after `prefs` init, add a
+`#ifdef WOKWI_SIM` block using SSID `Wokwi-GUEST` and an empty password —
+**never commit real secrets**. Then the ambient rotation runs against live
+Finnhub/MET Norway.
 
 To watch the new 30-minute weather throttle ([`WEATHER_INTERVAL_MS`](src/config.h))
 without waiting half an hour, temporarily lower it (e.g. to `60 * 1000`) and

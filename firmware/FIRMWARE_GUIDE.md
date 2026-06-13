@@ -194,6 +194,34 @@ Each characteristic callback stashes its payload and flags it; Core 1 applies it
 
 ---
 
+## Serial console (dev/test)
+
+A USB-serial command path that mirrors the BLE control plane — handy for local
+testing and the **only** way to provision in Wokwi (BLE isn't simulated). Each
+command writes the same `pending*` buffer + `*UpdatePending` flag a BLE write
+would, so `loop()`'s `applyPending*()` applies it identically.
+
+Open the serial monitor (115200 baud) and type, e.g.:
+
+    wifi MyNetwork mypassword
+    apikey d1abc...
+    tickers AAPL,MSFT,GOOG
+    mode all
+    sign HELLO
+    timer 5
+    info
+
+`info` prints current state; `help` lists every verb. The parser lives in
+`src/console.{h,cpp}` (pure, host-tested via `pio test -e native`); the verb
+dispatch is in `main.cpp`.
+
+**Security:** the console bypasses the PIN gate. This is intentional — physical
+USB access already allows reflashing the chip, so it grants no extra privilege.
+`wifi` splits on the first space, so the SSID cannot contain a space (the
+password can).
+
+---
+
 ## 6. Data Pipeline
 
 ### 6.1 Fetch loop
