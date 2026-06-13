@@ -47,7 +47,7 @@ uv run tools/led.py timezone "EST5EDT,M3.2.0,M11.1.0"     # US Eastern
 
 # Data
 uv run tools/led.py tickers AAPL TSLA NVDA SPY
-uv run tools/led.py locations "Seattle, WA" 98052
+uv run tools/led.py locations "47.61,-122.33,Seattle"   # lat,lon,label (look up coords online)
 uv run tools/led.py apikey your-finnhub-key
 uv run tools/led.py wifi My Network Name password
 

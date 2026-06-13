@@ -58,7 +58,7 @@ If you ever forget the PIN, read it off the serial monitor (`pio device monitor 
 | `DISPLAY_INTENSITY` | 2 | LED brightness, 0–15. Idle mode (post-sign with no ambient data) dims to 0 regardless of this setting. |
 | `SIGN_BREATH_MIN/MAX_INTENSITY`, `STEP_MS` | 1 / 6 / 400 | Subtle brightness pulse on static signs. Tune the three together — changing one in isolation loses the "breath" feel. |
 | `TIMEZONE` | `PST8PDT,M3.2.0,M11.1.0` | POSIX TZ string |
-| `NTP_SERVER` | `pool.ntp.org` | NTP host |
+| `NTP_SERVER_1` / `NTP_SERVER_2` | `time.google.com` / `time.cloudflare.com` | NTP hosts (anycast, no vendor-zone registration) |
 | `FETCH_INTERVAL_MS` | 5 min | Stock + weather refresh interval |
 
 **Hardware pins — `firmware/src/config.h`:** `HARDWARE_TYPE`, `MAX_DEVICES` (4), `DIN_PIN`/`CLK_PIN`/`CS_PIN` (6/4/5), `RGB_LED_PIN` (48), `BUTTON_PIN` (0). Edit these when porting to a different board — see [Hardware & wiring](#hardware--wiring) above.
