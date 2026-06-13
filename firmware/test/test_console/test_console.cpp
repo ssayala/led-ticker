@@ -1,6 +1,11 @@
 #include <unity.h>
 #include "console.h"
 
+void test_null_input(void) {
+  ConsoleCmd c = parseConsoleLine(nullptr);
+  TEST_ASSERT_EQUAL(CONSOLE_NONE, c.verb);
+  TEST_ASSERT_EQUAL_STRING("", c.arg);
+}
 void test_empty_line(void) {
   TEST_ASSERT_EQUAL(CONSOLE_NONE, parseConsoleLine("").verb);
 }
@@ -49,6 +54,7 @@ void tearDown(void) {}
 
 int main(int, char**) {
   UNITY_BEGIN();
+  RUN_TEST(test_null_input);
   RUN_TEST(test_empty_line);
   RUN_TEST(test_whitespace_only);
   RUN_TEST(test_unknown_verb);

@@ -16,7 +16,7 @@ const VerbEntry kVerbs[] = {
     {"reload", CONSOLE_RELOAD},    {"reset", CONSOLE_RESET},
     {"info", CONSOLE_INFO},        {"help", CONSOLE_HELP},
 };
-inline bool isSpace(char c) { return c == ' ' || c == '\t'; }
+bool isSpace(char c) { return c == ' ' || c == '\t'; }
 }  // namespace
 
 ConsoleCmd parseConsoleLine(const char* line) {
@@ -24,7 +24,10 @@ ConsoleCmd parseConsoleLine(const char* line) {
   if (!line) return cmd;
 
   while (isSpace(*line)) line++;       // skip leading whitespace
-  if (*line == '\0') return cmd;       // blank line -> CONSOLE_NONE
+  if (*line == '\0') {                 // blank line -> CONSOLE_NONE
+    cmd.arg = line;                    // points at the NUL inside the input
+    return cmd;
+  }
 
   const char* verbStart = line;
   const char* p = line;
