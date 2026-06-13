@@ -1,6 +1,6 @@
 # LED Ticker
 
-Desk sign + ambient ticker built on an ESP32-S3 and a DIYables 4-in-1 MAX7219 LED matrix. Rotates stocks, weather, and a clock; flips to a steady sign or a countdown timer on demand.
+Desk sign + ambient ticker built on an ESP32-S3 and a DIYables 4-in-1 MAX7219 LED matrix. Rotates stocks, weather, and a clock; flips to a steady sign or a countdown timer on demand. Wi-Fi only feeds the live data; the sign and timer run fully offline.
 
 [![Project page](https://img.shields.io/badge/Project%20Page-%E2%86%97-FF2F2F?style=for-the-badge&labelColor=FF2F2F)](https://ledticker.app/)
 
