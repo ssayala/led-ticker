@@ -8,6 +8,8 @@ Guidance for Claude Code working in this repo. Firmware internals live in [`firm
 pio run -d firmware -t upload    # build and flash to ESP32-S3
 pio device monitor -d firmware   # serial monitor (115200 baud, /dev/ttyACM0)
 pio run -d firmware              # build only
+pio run -d firmware -e wokwi     # no-PSRAM build for the Wokwi sim (see firmware/WOKWI.md)
+pio test -d firmware -e native   # host unit tests (console parser)
 ```
 
 Run from the repo root. Press the physical reset button after flashing.
@@ -35,6 +37,7 @@ Missing prereqs (WiFi creds, Finnhub key) divert to `MODE_SETUP`.
 - **NVS namespaces:** `wifi`, `apikey`, `tickers`, `locs`, `display` (keys `mask`, `bright`, `scroll`), `time` (key `tz`), `pin` (keys `code`, `on`). `msgs`/`status` are tombstones.
 - Fetched quotes/weather and the active sign are RAM-only — a power cycle clears the sign and resumes ambient.
 - **BLE name:** `LED-Ticker-XXXX` (low 2 bytes of chip MAC) — primary control plane. CLI: `uv run tools/led.py <cmd>`. The iOS app in `ios/` uses the same service; BLE is the contract, so iOS iteration needs no firmware change.
+- **Serial console:** a USB-serial command path (`src/console.{h,cpp}` pure parser + `dispatchConsoleCmd`/`pollSerialConsole` in `main.cpp`) mirrors every BLE verb by writing the same `pending*` buffers — for dev/test and as the **only** control path in Wokwi (BLE isn't simulated). Bypasses the PIN gate (physical USB already allows reflashing). `wifi <ssid>` (no pass) = open network; `sign` composes `text|0`. Details in [`firmware/FIRMWARE_GUIDE.md`](firmware/FIRMWARE_GUIDE.md).
 
 ## BLE auth
 

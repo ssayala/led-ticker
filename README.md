@@ -44,6 +44,8 @@ Wiring, porting notes, and pin config are in [Getting started](GETTING_STARTED.m
 
 No toolchain? Flash released firmware straight from a browser at **[ledticker.app/flash](https://ledticker.app/flash)**.
 
+Provision from the iOS app, the CLI, or — with no app or BLE client — a [USB serial console](GETTING_STARTED.md#provisioning-over-usb-serial) that mirrors every setting.
+
 ## Documentation
 
 - **[Getting started](GETTING_STARTED.md)** — build, flash, first-boot pairing, and `config.h` tuning.

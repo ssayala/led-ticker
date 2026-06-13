@@ -47,6 +47,20 @@ Onboard RGB LED (GPIO 48) lights blue during network fetches. The Freenove board
 
 If you ever forget the PIN, read it off the serial monitor (`pio device monitor -d firmware`) at boot, or factory-reset to rotate it.
 
+## Provisioning over USB serial
+
+No app or BLE client handy? The firmware also exposes a **serial command console** over USB (115200 baud) that mirrors every BLE setting — useful for bench setup, and the only control path in the [Wokwi simulator](firmware/WOKWI.md). Open `pio device monitor -d firmware` and type:
+
+```
+wifi MyNetwork mypassword
+apikey your-finnhub-key
+tickers AAPL,MSFT,GOOG
+sign HELLO
+help
+```
+
+`help` lists every verb; `info` prints current state. Unlike the CLI, the console splits `wifi` on the first space, so the **SSID can't contain spaces** (the password can); `wifi MyNetwork` with no password joins an open network. The console bypasses the PIN — physical USB access already allows reflashing. Full reference: [Firmware guide → Serial console](firmware/FIRMWARE_GUIDE.md).
+
 ## Configuration
 
 **User tunables — `firmware/src/config.h`:**
