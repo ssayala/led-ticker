@@ -14,7 +14,7 @@ Desk sign + ambient ticker built on an ESP32-S3 and a DIYables 4-in-1 MAX7219 LE
 ## Features
 
 - **Sign mode** — one-tap status text ("BUSY", "FOCUS", "ON AIR") that overrides the ambient rotation, with an optional auto-clear timer. Or run a **countdown timer** (1–99 min): a live `MM:SS`, an end animation, then back to ambient.
-- **Live data** — stock quotes (Finnhub) and multi-location weather (Open-Meteo).
+- **Live data** — stock quotes (Finnhub) and multi-location weather (MET Norway).
 - **12-hour clock** — steady `H:MM` when shown alone, scrolls `H:MM AM/PM` when mixed in.
 - **Display on/off** — blank the matrix and pause fetches without losing the saved ambient mode.
 - **Adjustable brightness & scroll speed** — set from the iOS app or CLI, applied live and persisted on the device.

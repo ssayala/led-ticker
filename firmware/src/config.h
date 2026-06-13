@@ -77,3 +77,7 @@ const int defaultLocationCount =
 // Weather changes slowly upstream — throttle it apart from the stock cadence
 // so it only hits the API every 30 minutes, not on every fetch tick.
 #define WEATHER_INTERVAL_MS (30 * 60 * 1000)
+
+// MET Norway (api.met.no) requires an identifying User-Agent with contact info
+// or it returns 403 for new clients. Set this to your project/contact.
+#define WEATHER_USER_AGENT "LED-Ticker (https://github.com/ssayala/esp32-led-simple)"

@@ -683,14 +683,16 @@ static void fetchWeatherImpl(bool force) {
   for (int i = 0; i < nvsLocationCount && count < MAX_LOCATIONS; i++) {
     if (!resolved[i].ok) continue;  // malformed "lat,lon,label" entry
 
-    char url[256];
-    snprintf(
-        url, sizeof(url),
-        "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
-        "&current=temperature_2m&temperature_unit=fahrenheit",
-        resolved[i].lat, resolved[i].lon);
+    // MET Norway: global, no key. Coordinates capped at 4 decimals per MET's
+    // cache rules (we already store them rounded).
+    char url[160];
+    snprintf(url, sizeof(url),
+             "https://api.met.no/weatherapi/locationforecast/2.0/compact"
+             "?lat=%.4f&lon=%.4f",
+             resolved[i].lat, resolved[i].lon);
 
     http.begin(url);
+    http.addHeader("User-Agent", WEATHER_USER_AGENT);  // MET 403s without it
     int code = http.GET();
     if (code != 200) {
       Serial.printf("Weather HTTP error: %d for %s\n", code, resolved[i].name);
@@ -698,8 +700,14 @@ static void fetchWeatherImpl(bool force) {
       continue;
     }
 
+    // The response carries ~90 timesteps; filter to just the current instant's
+    // temperature so the parse stays small.
+    JsonDocument filter;
+    filter["properties"]["timeseries"][0]["data"]["instant"]["details"]
+          ["air_temperature"] = true;
     JsonDocument doc;
-    DeserializationError err = deserializeJson(doc, http.getStream());
+    DeserializationError err = deserializeJson(
+        doc, http.getStream(), DeserializationOption::Filter(filter));
     http.end();
     if (err) {
       Serial.printf("Weather JSON parse error: %s for %s\n", err.c_str(),
@@ -707,9 +715,18 @@ static void fetchWeatherImpl(bool force) {
       continue;
     }
 
+    // timeseries[0] is the current instant (not a forecast period). MET reports
+    // °C; the display works in °F.
+    JsonVariant tempC = doc["properties"]["timeseries"][0]["data"]["instant"]
+                           ["details"]["air_temperature"];
+    if (tempC.isNull()) {
+      Serial.printf("Weather: no temperature for %s\n", resolved[i].name);
+      continue;
+    }
+
     strncpy(tmp[count].name, resolved[i].name, MAX_LOC_NAME_LEN - 1);
     tmp[count].name[MAX_LOC_NAME_LEN - 1] = '\0';
-    tmp[count].tempF = doc["current"]["temperature_2m"];
+    tmp[count].tempF = tempC.as<float>() * 9.0f / 5.0f + 32.0f;
     count++;
   }
 

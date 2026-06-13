@@ -14,7 +14,7 @@ The firmware is built around a dual-core model so network latency (seconds) neve
 graph TD
     subgraph Core0 ["Core 0 (Network & Stack Core)"]
         A[fetchTask - Pinned to Core 0] -->|HTTP GET| B1[Finnhub API - Stocks]
-        A -->|HTTP GET| B2[Open-Meteo API - Weather]
+        A -->|HTTP GET| B2[MET Norway API - Weather]
         NimBLE[NimBLE Stack & Callbacks] -->|Stash & Flag| Pend[Volatile Buffers & Pending Flags]
     end
 
@@ -34,7 +34,7 @@ graph TD
 ```
 
 ### 1.1 Core Assignment
-- **Core 0 (`fetchTask`):** background HTTP/HTTPS to external APIs (Finnhub stocks; Open-Meteo weather). Pinned to Core 0 with an 8 KB stack (`FETCH_TASK_STACK = 8192`).
+- **Core 0 (`fetchTask`):** background HTTP/HTTPS to external APIs (Finnhub stocks; MET Norway weather). Pinned to Core 0 with an 8 KB stack (`FETCH_TASK_STACK = 8192`).
 - **Core 1 (`setup()` / `loop()`):** drives the MAX7219 matrix, polls the hardware button, tracks BLE connections, and applies deferred state updates.
 
 ### 1.2 Data Synchronization & Thread Safety
@@ -211,7 +211,7 @@ If no enabled bit has data yet, `showNext()` shows `"Loading <category>..."` for
 `isMarketOpen()` (Mon–Fri 9:30–16:00 ET) gates stock *fetches* only, not display. When closed, last-fetched quotes stay in RAM and the API call is skipped. A cold boot with no data fetches once regardless.
 
 ### 6.4 Locations
-The device does **not** geocode — the client (iOS app via MapKit, or the CLI) resolves place names to coordinates and sends `lat,lon,label` triplets over the Locations characteristic. `parseLocation()` splits each entry into `resolved[]` (lat/lon + display label) with no network; `reparseLocations()` re-derives the cache on NVS load and on every write. Malformed or out-of-range entries are skipped. `fetchWeatherImpl()` then uses `resolved[i].lat/lon` directly for the Open-Meteo forecast call.
+The device does **not** geocode — the client (iOS app via MapKit, or the CLI) resolves place names to coordinates and sends `lat,lon,label` triplets over the Locations characteristic. `parseLocation()` splits each entry into `resolved[]` (lat/lon + display label) with no network; `reparseLocations()` re-derives the cache on NVS load and on every write. Malformed or out-of-range entries are skipped. `fetchWeatherImpl()` then uses `resolved[i].lat/lon` directly for the MET Norway weather call (current instant from `timeseries[0]`, °C → °F; `User-Agent` required).
 
 ### 6.5 RAM-only fetched data
 Stocks (`stockQuotes[]`: raw price + `changePct`) and weather (`weatherReadings[]`: raw `tempF`) live only in RAM. Display format (`\x18`/`\x19` arrows, `°F`) is computed on every scroll in `showNextStock()` / `showNextWeather()`, so format changes apply immediately without a reload. The active sign is likewise RAM-only — a power cycle clears it and resumes ambient.

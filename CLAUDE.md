@@ -16,7 +16,7 @@ Run from the repo root. Press the physical reset button after flashing.
 
 Single-file ESP32-S3 firmware (`firmware/src/main.cpp`) driving a DIYables 4-in-1 MAX7219 matrix. Two orthogonal display layers, each set independently over BLE:
 
-- **Ambient rotation** — stocks (Finnhub), weather (Open-Meteo forecast; locations are geocoded by the client and sent as `lat,lon,label`), clock (NTP). Controlled by an enabled-category bitmask.
+- **Ambient rotation** — stocks (Finnhub), weather (MET Norway current conditions; locations are geocoded by the client and sent as `lat,lon,label`), clock (NTP). Controlled by an enabled-category bitmask.
 - **Active status (sign mode)** — text that overrides ambient until expiry/clear (≤5 chars steady, longer scrolls), or a countdown timer (`timer <min>` Command verb) — mutually exclusive with the text sign. Preset chips live in the iOS app, not on-device.
 
 Missing prereqs (WiFi creds, Finnhub key) divert to `MODE_SETUP`.
