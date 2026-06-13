@@ -1,39 +1,24 @@
 {
   "version": 1,
-  "author": "Sunil Sayala",
+  "author": "Sunil S",
   "editor": "wokwi",
   "parts": [
-    {
-      "type": "board-esp32-s3-devkitc-1",
-      "id": "esp",
-      "top": 0,
-      "left": 0,
-      "attrs": {}
-    },
+    { "type": "board-esp32-s3-devkitc-1", "id": "esp", "top": 0, "left": 0, "attrs": { "serialInterface": "USB_SERIAL_JTAG" } },
     {
       "type": "wokwi-max7219-matrix",
       "id": "matrix",
-      "top": -150,
-      "left": 130,
+      "top": -105,
+      "left": -50.16,
       "attrs": { "chain": "4", "layout": "fc16" }
-    },
-    {
-      "type": "wokwi-neopixel",
-      "id": "statusled",
-      "top": 110,
-      "left": 160,
-      "attrs": {}
     }
   ],
   "connections": [
-    [ "esp:6", "matrix:DIN", "green", [] ],
-    [ "esp:4", "matrix:CLK", "yellow", [] ],
-    [ "esp:5", "matrix:CS", "blue", [] ],
-    [ "esp:5V", "matrix:VCC", "red", [] ],
-    [ "esp:GND.1", "matrix:GND", "black", [] ],
-
-    [ "esp:48", "statusled:DIN", "green", [] ],
-    [ "esp:3V3.2", "statusled:VDD", "red", [] ],
-    [ "esp:GND.2", "statusled:VSS", "black", [] ]
-  ]
+    [ "esp:5V", "matrix:V+", "red", [ "h0" ] ],
+    [ "esp:GND.2", "matrix:GND", "black", [ "v0" ] ],
+    [ "esp:6", "matrix:DIN", "green", [ "h0" ] ],
+    [ "esp:4", "matrix:CLK", "yellow", [ "h0" ] ],
+    [ "esp:5", "matrix:CS", "blue", [ "h0" ] ]
+  ],
+  "dependencies": {},
+  "serialMonitor": { "display": "terminal", "convertEol": true }
 }
