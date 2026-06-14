@@ -49,7 +49,7 @@ If you ever forget the PIN, read it off the serial monitor (`pio device monitor 
 
 ## Provisioning over USB serial
 
-No app or BLE client handy? The firmware also exposes a **serial command console** over USB (115200 baud) that mirrors every BLE setting — useful for bench setup, and the only control path in the [Wokwi simulator](firmware/WOKWI.md). Open `pio device monitor -d firmware` and type:
+The firmware can also expose a **serial command console** over USB (115200 baud) that mirrors every BLE setting. It's **off by default on real hardware** (`CONSOLE_ENABLED=0`) — it's the only control path in the [Wokwi simulator](firmware/WOKWI.md), and you can turn it on for a device by building with `-DCONSOLE_ENABLED=1`. Open `pio device monitor -d firmware` and type:
 
 ```
 wifi MyNetwork mypassword

@@ -44,7 +44,7 @@ Wiring, porting notes, and pin config are in [Getting started](GETTING_STARTED.m
 
 No toolchain? Flash released firmware straight from a browser at **[ledticker.app/flash](https://ledticker.app/flash)**.
 
-Provision from the iOS app, the CLI, or — with no app or BLE client — a [USB serial console](GETTING_STARTED.md#provisioning-over-usb-serial) that mirrors every setting.
+Provision from the iOS app or the CLI. (The Wokwi simulator has no BLE — there you provision over a [USB serial console](GETTING_STARTED.md#provisioning-over-usb-serial) instead.)
 
 ## Documentation
 
