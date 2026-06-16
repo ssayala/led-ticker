@@ -7,6 +7,7 @@
 #include <Preferences.h>
 #include <SPI.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <time.h>
 
 #include "config.h"
@@ -606,13 +607,16 @@ static void fetchStocksImpl(bool force) {
   StockQuote tmp[MAX_STOCKS];
   int count = 0;
 
+  // Reuse one TLS connection across all tickers via HTTP/1.1 keep-alive: the
+  // quote endpoint returns a fixed ~90-byte body, so getString() buffering is
+  // cheap and we skip a fresh handshake per symbol. (Weather can't share this —
+  // its response is tens of KB and must stream through a filter; see below.)
+  WiFiClientSecure client;
+  client.setInsecure();  // no CA pinning configured; matches prior begin(url) path
   HTTPClient http;
+  http.setReuse(true);
   http.setConnectTimeout(5000);
   http.setTimeout(5000);
-  // HTTP/1.0 disables chunked encoding — getStream() is the raw socket and
-  // doesn't decode chunks, so ArduinoJson needs a plain body. Costs
-  // keep-alive; fine at this call rate.
-  http.useHTTP10(true);
 
   for (int i = 0; i < nvsTickerCount && count < MAX_STOCKS; i++) {
     char url[256];
@@ -620,7 +624,7 @@ static void fetchStocksImpl(bool force) {
              "https://finnhub.io/api/v1/quote?symbol=%s&token=%s",
              nvsTickers[i], nvsApiKey);
 
-    http.begin(url);
+    http.begin(client, url);
 
     int code = http.GET();
     if (code != 200) {
@@ -629,9 +633,11 @@ static void fetchStocksImpl(bool force) {
       continue;
     }
 
-    JsonDocument doc;
-    DeserializationError err = deserializeJson(doc, http.getStream());
+    String body = http.getString();
     http.end();
+
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, body);
     if (err) {
       Serial.printf("Stock JSON parse error: %s for %s\r\n", err.c_str(),
                     nvsTickers[i]);
@@ -755,8 +761,11 @@ static void fetchTask(void*) {
     unsigned long t0 = millis();
     Serial.printf("[fetch] start mask=0x%02X force=%lu\r\n", enabledMask,
                   (unsigned long)forceVal);
-    fetchStocksImpl((bool)forceVal);
-    fetchWeatherImpl((bool)forceVal);
+    // Only fetch categories the mask enables — no point spending API quota on
+    // data that won't be shown. Toggling a category on triggers a forced fetch
+    // (applyPendingMode), so the newly-enabled category warms immediately.
+    if (enabledMask & BIT_STOCKS) fetchStocksImpl((bool)forceVal);
+    if (enabledMask & BIT_WEATHER) fetchWeatherImpl((bool)forceVal);
     Serial.printf("[fetch] end took=%lums\r\n", millis() - t0);
     fetching = false;
   }
@@ -2626,7 +2635,11 @@ void setup() {
 // the chip, so the console grants no privilege an attacker wouldn't have.
 // Runs in loop() on Core 1 — safe to set flags and read display globals; it
 // never calls neopixelWrite().
+//
+// Compiled out on real hardware (CONSOLE_ENABLED=0) — the only caller is
+// pollSerialConsole's guarded body, so the whole dispatch block is dead there.
 // ----------------------------------------------------------------------------
+#if CONSOLE_ENABLED
 
 static void consoleSetPending(char* dest, size_t destLen, const char* src,
                               volatile bool& flag) {
@@ -2799,6 +2812,8 @@ static void dispatchConsoleCmd(const ConsoleCmd& cmd) {
   }
 }
 
+#endif  // CONSOLE_ENABLED
+
 // Non-blocking: accumulate one line, then parse + dispatch. Buffer sized to the
 // largest payload (locations CSV) plus the verb word and separators.
 void pollSerialConsole() {
@@ -2909,4 +2924,9 @@ void loop() {
     lastFetch = millis();
     triggerFetch();
   }
+
+  // Yield one tick once this iteration's work is done — lets Core 1 idle (WAITI)
+  // instead of busy-spinning at 240 MHz. ~1 kHz loop rate is ample for scroll
+  // timing and BLE; cuts idle power/heat. Pacing only — never delay() mid-work.
+  delay(1);
 }

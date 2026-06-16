@@ -321,8 +321,10 @@ Starting lwIP's SNTP daemon with no active gateway queues DNS retries indefinite
 - Passing a stack-local buffer causes undefined reads and screen corruption once the stack frame peels back.
 - **Always** use static buffers (`scrollBuf`, `statusShown`, function-static `buf`) for text handed to the display.
 
-### 10.2 No `delay()` in `loop()`
-The loop is cooperative — every animation (idle pixel, timer countdown, end animation) is `millis()`-stepped. A `delay()` stalls BLE handling and scrolling. (The only exceptions are the `displayOff` yield and the reset-countdown path, which are intentionally non-rendering.)
+### 10.2 No `delay()` mid-`loop()`
+The loop is cooperative — every animation (idle pixel, timer countdown, end animation) is `millis()`-stepped. A `delay()` *between* work stalls BLE handling and scrolling, so never block mid-iteration.
+
+The one deliberate `delay()` is a `delay(1)` at the very **end** of `loop()`, after all work for the iteration is done. It's a pacing yield: `delay()` is `vTaskDelay()`, so it hands Core 1 to the scheduler for one ~1 ms tick and the idle task halts the core (`WAITI`) instead of busy-spinning at 240 MHz — cutting idle power/heat with no perceptible latency (the loop still runs ~1 kHz, ample for scroll timing and BLE). The `displayOff` yield (`delay(100)`) and the reset-countdown path are the other intentionally non-rendering exceptions.
 
 ### 10.3 Cross-core NeoPixel rule
 The fetch task (Core 0) must never call `neopixelWrite()` — see [§1.2](#12-data-synchronization--thread-safety). It sets `fetching`; Core 1 renders the LED.

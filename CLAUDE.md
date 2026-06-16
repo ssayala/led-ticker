@@ -49,7 +49,7 @@ Every write characteristic is gated on `isConnAuthed()` while enforcement is on 
 - **New write characteristics:** build on `GatedStashCallbacks` (auth gate + activity stamp + pending-buffer stash are inherited; subclass only to add `onRead`). Hand-roll callbacks only when the write needs extra policy (cooldown, empty-as-clear, payload-dependent) — then use the 2-arg `onWrite(NimBLECharacteristic*, ble_gap_conn_desc*)` overload and call `isConnAuthed(desc->conn_handle)` at the top; it returns true while enforcement is off, so gate unconditionally.
 - **Cross-core:** the fetch task (Core 0) must NOT touch `neopixelWrite()`. It sets the `fetching` volatile flag; Core 1 `loop()` consumes it via `updateStatusLed()`.
 - **`initTime()` is WiFi-gated** — starting SNTP without a connection wedges the device.
-- **No `delay()` in `loop()`** — it's cooperative.
+- **No `delay()` mid-`loop()`** — it's cooperative; never stall time-sensitive work. The lone exception is a single `delay(1)` at the very end as a pacing yield (lets Core 1 idle instead of busy-spinning), plus the `displayOff`/reset-countdown early-returns.
 - **Status writes bypass the 10 s fetch cooldown** — they must feel immediate.
 
 ## Versioning
