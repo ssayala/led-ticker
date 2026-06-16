@@ -56,4 +56,7 @@ Provision from the iOS app or the CLI. (The Wokwi simulator has no BLE — there
 
 ## License
 
-Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md) © Sunil Sayala. Free to build, modify, and share for **noncommercial** use — personal, hobby, research, education. **Commercial use, including selling devices based on this work, is not permitted.** Covers the firmware and the hardware design files in [`hardware/`](hardware/).
+Source-available, **noncommercial** © Sunil Sayala — free to build, modify, and share for personal, hobby, research, and educational use. **Commercial use, including selling devices based on this work, is not permitted.**
+
+- **Firmware** — [PolyForm Noncommercial License 1.0.0](LICENSE.md).
+- **Hardware design files** in [`hardware/`](hardware/) (PCB, mechanical, case STLs) — [CC BY-NC 4.0](hardware/LICENSE).
