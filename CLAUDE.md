@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for Claude Code working in this repo. Firmware internals live in [`firmware/FIRMWARE_GUIDE.md`](firmware/FIRMWARE_GUIDE.md) — read it before non-trivial edits to `firmware/src/main.cpp`. BLE UUIDs, payload formats, and auth semantics live in [`BLE_PROTOCOL.md`](BLE_PROTOCOL.md).
+Guidance for Claude Code working in this repo. [`firmware/FIRMWARE_GUIDE.md`](firmware/FIRMWARE_GUIDE.md) is a high-level map of how the firmware works — read it for orientation before non-trivial edits to `firmware/src/main.cpp`; the specifics are in the code itself. BLE UUIDs, payload formats, and auth semantics live in [`BLE_PROTOCOL.md`](BLE_PROTOCOL.md).
 
 ## Build & Upload
 
