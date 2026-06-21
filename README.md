@@ -51,7 +51,10 @@ Provision from the iOS app or the CLI. (The Wokwi simulator has no BLE — there
 
 ## License
 
-Source-available, **noncommercial** © Sunil Sayala — free to build, modify, and share for personal, hobby, research, and educational use. **Commercial use, including selling devices based on this work, is not permitted.**
+Open and permissive © Sunil Sayala — free to use, build, modify, share, and sell, including commercially, with attribution.
 
-- **Firmware** — [PolyForm Noncommercial License 1.0.0](LICENSE.md).
-- **Hardware design files** in [`hardware/`](hardware/) (PCB, mechanical, case STLs) — [CC BY-NC 4.0](hardware/LICENSE).
+- **Firmware** — [Apache-2.0](LICENSE).
+- **Hardware design files** in [`hardware/`](hardware/) (PCB, mechanical, case STLs) — [CC BY 4.0](hardware/LICENSE).
+- **Python client** in [`tools/`](tools/) (the `led_ticker` package & `led` CLI) — [Apache-2.0](tools/LICENSE).
+
+Attribution is required by these licenses — please keep the credit; see [NOTICE](NOTICE).

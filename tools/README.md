@@ -115,3 +115,7 @@ uv run tools/led.py reset                 # wipe NVS, rotate PIN, revert to conf
 ```
 
 Stale-PIN safety: every write probes the device after sending the PIN and exits with a clear error if the PIN was rotated by a factory reset — a write never fails silently because of an out-of-date local PIN.
+
+## License
+
+[Apache-2.0](LICENSE) © 2026 Sunil Sayala — free to use, including commercially, with attribution. (The firmware in the parent repo is also Apache-2.0; the hardware design files are CC BY 4.0 — see the [repo root](https://github.com/ssayala/esp32-led-simple).)

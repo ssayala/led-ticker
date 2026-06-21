@@ -19,4 +19,4 @@ Designed from scratch in Shapr3D on a Mac — no downloaded model, just calipers
 
 ## License
 
-Design files licensed [CC BY-NC 4.0](../LICENSE) — personal/noncommercial use with attribution; no selling clones.
+Design files licensed [CC BY 4.0](../LICENSE) — free to use, modify, share, and sell with attribution.

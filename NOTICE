@@ -1,0 +1,8 @@
+LED Ticker
+Copyright 2026 Sunil Sayala
+https://github.com/ssayala/esp32-led-simple
+
+This product includes software developed by Sunil Sayala.
+The firmware and the Python client (tools/led_ticker) are licensed under the
+Apache License, Version 2.0 (see LICENSE). Hardware design files in hardware/
+are licensed under CC BY 4.0 (see hardware/LICENSE). Attribution required.

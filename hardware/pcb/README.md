@@ -18,4 +18,4 @@ The board is footprint-specific to the **Freenove ESP32-S3-WROOM (FNK0099)** —
 
 ## License
 
-Design files licensed [CC BY-NC 4.0](../LICENSE) — personal/noncommercial use with attribution; no selling clones.
+Design files licensed [CC BY 4.0](../LICENSE) — free to use, modify, share, and sell with attribution.

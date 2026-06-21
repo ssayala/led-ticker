@@ -3,8 +3,15 @@ name = "led-ticker"
 version = "0.3.0"
 description = "Python client library and CLI for the LED-Ticker BLE device"
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Sunil Sayala" }]
 requires-python = ">=3.11"
 dependencies = ["bleak>=0.21"]
+
+[project.urls]
+Homepage = "https://github.com/ssayala/esp32-led-simple"
+Repository = "https://github.com/ssayala/esp32-led-simple"
 
 [project.scripts]
 led = "led_ticker.cli:main"
