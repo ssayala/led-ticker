@@ -1,5 +1,7 @@
 import led_ticker.cli as cli
 import led_ticker.protocol as P
+from led_ticker.protocol import DeviceInfo
+from led_ticker.errors import AmbiguousDeviceError
 
 
 class FakeDevice:
@@ -92,3 +94,152 @@ def test_pin_prefix_passes_to_ledticker(monkeypatch):
 def test_pin_flag_missing_value_returns_1(capsys):
     assert cli.main(["--pin"]) == 1
     assert "ERROR:" in capsys.readouterr().out
+
+
+def test_devices_lists_found(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "scan", lambda *a, **k: [
+        DeviceInfo("LED-Ticker-A1B2", "AA:BB:CC:DD:EE:01", -54),
+        DeviceInfo("LED-Ticker-9F3C", "AA:BB:CC:DD:EE:02", -71),
+    ])
+    assert cli.main(["devices"]) == 0
+    out = capsys.readouterr().out
+    assert "Found 2 LED-Ticker device(s):" in out
+    assert "LED-Ticker-A1B2" in out and "-54 dBm" in out
+
+
+def test_devices_none_found(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "scan", lambda *a, **k: [])
+    assert cli.main(["devices"]) == 0
+    assert "No LED-Ticker devices found." in capsys.readouterr().out
+
+
+def test_device_flag_forwarded_as_select(monkeypatch):
+    seen = {}
+
+    class Dev:
+        def __enter__(self_):
+            return self_
+        def __exit__(self_, *a):
+            return False
+        def set_power(self_, on):
+            seen["power"] = on
+
+    monkeypatch.setattr(cli, "LedTicker", lambda **kw: seen.update({"kw": kw}) or Dev())
+    assert cli.main(["--device", "A1B2", "power", "on"]) == 0
+    assert seen["kw"]["select"] == "A1B2"
+
+
+def test_device_flag_requires_value(capsys):
+    assert cli.main(["--device"]) == 1
+    assert "--device requires a value" in capsys.readouterr().out
+
+
+def test_ambiguous_non_interactive_lists_and_exits(monkeypatch, capsys):
+    cands = [DeviceInfo("LED-Ticker-A1B2", "AA:BB:CC:DD:EE:01", -50),
+             DeviceInfo("LED-Ticker-9F3C", "AA:BB:CC:DD:EE:02", -70)]
+
+    class Boom:
+        def __enter__(self_):
+            raise AmbiguousDeviceError(candidates=cands)
+        def __exit__(self_, *a):
+            return False
+
+    monkeypatch.setattr(cli, "LedTicker", lambda **kw: Boom())
+    monkeypatch.setattr(cli, "_interactive", lambda: False)
+    assert cli.main(["power", "on"]) == 1
+    err = capsys.readouterr().err
+    assert "multiple" in err.lower()
+    assert "LED-Ticker-A1B2" in err and "LED-Ticker-9F3C" in err
+
+
+def test_ambiguous_interactive_prompts_then_connects(monkeypatch, capsys):
+    cands = [DeviceInfo("LED-Ticker-A1B2", "AA:BB:CC:DD:EE:01", -50),
+             DeviceInfo("LED-Ticker-9F3C", "AA:BB:CC:DD:EE:02", -70)]
+    calls = []
+    done = {}
+
+    class Boom:
+        def __enter__(self_):
+            raise AmbiguousDeviceError(candidates=cands)
+        def __exit__(self_, *a):
+            return False
+
+    class Dev:
+        def __enter__(self_):
+            return self_
+        def __exit__(self_, *a):
+            return False
+        def set_power(self_, on):
+            done["power"] = on
+
+    def factory(**kw):
+        calls.append(kw.get("select"))
+        return Boom() if len(calls) == 1 else Dev()
+
+    monkeypatch.setattr(cli, "LedTicker", factory)
+    monkeypatch.setattr(cli, "_interactive", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda *a: "1")
+    assert cli.main(["power", "on"]) == 0
+    assert calls[0] is None                     # first attempt: no selector
+    assert calls[1] == "AA:BB:CC:DD:EE:01"      # retry targets chosen address
+    assert done["power"] is True
+
+
+def test_ambiguous_interactive_bad_choice_exits(monkeypatch, capsys):
+    cands = [DeviceInfo("LED-Ticker-A1B2", "AA:BB:CC:DD:EE:01", -50),
+             DeviceInfo("LED-Ticker-9F3C", "AA:BB:CC:DD:EE:02", -70)]
+
+    class Boom:
+        def __enter__(self_):
+            raise AmbiguousDeviceError(candidates=cands)
+        def __exit__(self_, *a):
+            return False
+
+    monkeypatch.setattr(cli, "LedTicker", lambda **kw: Boom())
+    monkeypatch.setattr(cli, "_interactive", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda *a: "9")
+    assert cli.main(["power", "on"]) == 1
+    assert "invalid selection" in capsys.readouterr().out.lower()
+
+
+def test_reset_confirm_asked_once_on_ambiguous_interactive_path(monkeypatch):
+    """Regression: confirmation prompt fires exactly once even when device selection
+    triggers the ambiguity path and re-runs the handler."""
+    cands = [DeviceInfo("LED-Ticker-A1B2", "AA:BB:CC:DD:EE:01", -50),
+             DeviceInfo("LED-Ticker-9F3C", "AA:BB:CC:DD:EE:02", -70)]
+    calls = []
+    done = {}
+    prompts = []
+
+    class Boom:
+        def __enter__(self_):
+            raise AmbiguousDeviceError(candidates=cands)
+        def __exit__(self_, *a):
+            return False
+
+    class Dev:
+        def __enter__(self_):
+            return self_
+        def __exit__(self_, *a):
+            return False
+        def reset(self_):
+            done["reset"] = True
+
+    def factory(**kw):
+        calls.append(kw.get("select"))
+        return Boom() if len(calls) == 1 else Dev()
+
+    def fake_input(prompt=""):
+        prompts.append(prompt)
+        if "Which device?" in prompt:
+            return "1"
+        return "y"
+
+    monkeypatch.setattr(cli, "LedTicker", factory)
+    monkeypatch.setattr(cli, "_interactive", lambda: True)
+    monkeypatch.setattr("builtins.input", fake_input)
+    assert cli.main(["reset"]) == 0
+
+    reset_prompts = [p for p in prompts if "Reset all NVS" in p]
+    assert len(reset_prompts) == 1, f"confirm asked {len(reset_prompts)} time(s), expected 1"
+    assert done.get("reset") is True
