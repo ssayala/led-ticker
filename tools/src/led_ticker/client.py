@@ -11,13 +11,16 @@ from bleak import BleakClient, BleakScanner
 
 from . import protocol as P
 from .auth import resolve_pin
-from .errors import AuthError, DeviceNotFoundError
+from .errors import AmbiguousDeviceError, AuthError, DeviceNotFoundError
 
 
 class LedTicker:
-    def __init__(self, address=None, name_prefix=P.DEVICE_NAME_PREFIX, timeout=15.0, pin=None):
+    def __init__(self, select=None, address=None, name_prefix=P.DEVICE_NAME_PREFIX,
+                 scan_timeout=4.0, timeout=15.0, pin=None):
+        self._select = select
         self._address = address
         self._prefix = name_prefix
+        self._scan_timeout = scan_timeout
         self._timeout = timeout
         self._pin = pin
         self._loop = None
@@ -50,14 +53,29 @@ class LedTicker:
 
     async def _connect(self):
         if self._address:
-            device = await BleakScanner.find_device_by_address(self._address, timeout=self._timeout)
-        else:
-            device = await BleakScanner.find_device_by_filter(
-                lambda d, _ad: bool(d.name and d.name.startswith(self._prefix)),
-                timeout=self._timeout,
+            device = await BleakScanner.find_device_by_address(
+                self._address, timeout=self._timeout
             )
-        if device is None:
-            raise DeviceNotFoundError(f"no '{self._prefix}-*' device found")
+            if device is None:
+                raise DeviceNotFoundError(f"no device with address {self._address}")
+        else:
+            matches = await _discover_raw(self._prefix, self._scan_timeout)
+            if self._select:
+                matches = [
+                    (dev, rssi) for dev, rssi in matches
+                    if P.device_matches(dev.name, dev.address, self._select)
+                ]
+            if not matches:
+                if self._select:
+                    raise DeviceNotFoundError(
+                        f"no '{self._prefix}-*' device matching '{self._select}'"
+                    )
+                raise DeviceNotFoundError(f"no '{self._prefix}-*' device found")
+            if len(matches) > 1:
+                raise AmbiguousDeviceError(
+                    candidates=[_to_info(dev, rssi) for dev, rssi in matches]
+                )
+            device = matches[0][0]
         client = BleakClient(device)
         await client.connect()
         return client
@@ -178,7 +196,33 @@ class LedTicker:
         return self._run(self._read(P.TZ_CHAR_UUID))
 
 
-_CONN_KW = ("address", "name_prefix", "timeout", "pin")
+async def _discover_raw(name_prefix, scan_timeout):
+    """Enumerate matching devices as (BLEDevice, rssi), strongest signal first."""
+    found = await BleakScanner.discover(timeout=scan_timeout, return_adv=True)
+    matches = [
+        (dev, adv.rssi)
+        for dev, adv in found.values()
+        if dev.name and dev.name.startswith(name_prefix)
+    ]
+    matches.sort(key=lambda t: (t[1] is None, -(t[1] or 0)))
+    return matches
+
+
+def _to_info(dev, rssi):
+    return P.DeviceInfo(name=dev.name, address=dev.address, rssi=rssi)
+
+
+def scan(name_prefix=P.DEVICE_NAME_PREFIX, scan_timeout=4.0):
+    """List LED-Ticker devices in range, strongest signal first."""
+    loop = asyncio.new_event_loop()
+    try:
+        matches = loop.run_until_complete(_discover_raw(name_prefix, scan_timeout))
+    finally:
+        loop.close()
+    return [_to_info(dev, rssi) for dev, rssi in matches]
+
+
+_CONN_KW = ("select", "address", "name_prefix", "scan_timeout", "timeout", "pin")
 
 
 def _one_shot(method, *args, **kwargs):

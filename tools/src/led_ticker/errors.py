@@ -11,6 +11,17 @@ class DeviceNotFoundError(LedTickerError):
     """No matching LED-Ticker device was found while scanning."""
 
 
+class AmbiguousDeviceError(LedTickerError):
+    """Multiple devices matched; selection could not resolve to exactly one.
+
+    Carries the candidate list so the CLI can list or prompt without re-scanning.
+    """
+
+    def __init__(self, message: str = "", *, candidates=None):
+        super().__init__(message or "multiple matching devices found")
+        self.candidates = candidates or []
+
+
 class AuthError(LedTickerError):
     """The device rejected our PIN, or requires one we do not have."""
 

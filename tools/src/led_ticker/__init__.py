@@ -2,6 +2,7 @@
 from .client import (
     LedTicker,
     cancel_timer,
+    scan,
     clear_status,
     get_apikey,
     get_display,
@@ -30,21 +31,25 @@ from .client import (
     set_wifi,
 )
 from .errors import (
+    AmbiguousDeviceError,
     AuthError,
     DeviceNotFoundError,
     LedTickerError,
     ProtocolError,
     ValidationError,
 )
-from .protocol import Display, Status
+from .protocol import DeviceInfo, Display, Status
 
 __all__ = [
+    "AmbiguousDeviceError",
     "AuthError",
+    "DeviceInfo",
     "DeviceNotFoundError",
     "Display",
     "LedTicker",
     "LedTickerError",
     "ProtocolError",
+    "scan",
     "Status",
     "ValidationError",
     # one-shot helpers
