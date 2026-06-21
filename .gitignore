@@ -2,8 +2,10 @@ firmware/src/secrets.h
 firmware/wokwi-merged.bin
 .pio
 .vscode/
-tools/__pycache__/
+__pycache__/
 tools/.ruff_cache/
+tools/uv.lock
+.superpowers/
 ios/
 docs/
 .DS_Store
