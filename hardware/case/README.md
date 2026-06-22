@@ -1,6 +1,6 @@
-# 3D-Printed Case
+# 3D-Printed Frame
 
-Two ways to mount the LED Ticker — pick one. Both hold the LED matrix and the [PCB](../pcb/README.md) together so they don't come apart.
+Two ways to frame the LED Ticker — pick one. Both hold the LED matrix and the [PCB](../pcb/README.md) together so they don't come apart. (Neither encloses the electronics — these are open mounts, not a sealed case.)
 
 | Option | Print | Look |
 |--------|-------|------|

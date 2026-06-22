@@ -27,7 +27,7 @@ Desk sign + ambient ticker built on an ESP32-S3 and a DIYables 4-in-1 MAX7219 LE
 
 ## Hardware
 
-A [Freenove ESP32-S3-WROOM (FNK0099)](https://store.freenove.com/products/fnk0099) and a [DIYables 4-in-1 MAX7219 8×8 LED matrix](https://diyables.io/products/dot-matrix-display-fc16-4-in-1-32x4-led). Wiring, porting notes, and pin config are in [Getting started](GETTING_STARTED.md#hardware--wiring). The repo includes a [custom PCB](hardware/pcb/README.md) and a [3D-printable case](hardware/case/).
+A [Freenove ESP32-S3-WROOM (FNK0099)](https://store.freenove.com/products/fnk0099) and a [DIYables 4-in-1 MAX7219 8×8 LED matrix](https://diyables.io/products/dot-matrix-display-fc16-4-in-1-32x4-led). Wiring, porting notes, and pin config are in [Getting started](GETTING_STARTED.md#hardware--wiring). The repo includes a [custom PCB](hardware/pcb/README.md) and a [3D-printable frame](hardware/case/).
 
 ## Build & flash
 
@@ -46,7 +46,7 @@ Provision from the iOS app or the CLI. (The Wokwi simulator has no BLE — there
 - **[BLE protocol](BLE_PROTOCOL.md)** — UUIDs, payloads, and semantics for custom clients.
 - **[Firmware guide](firmware/FIRMWARE_GUIDE.md)** — firmware internals: dual-core model, display state machine, and how to extend it.
 - **[Custom PCB](hardware/pcb/README.md)** — board sources, render, and ordering.
-- **[3D-printed case](hardware/case/)** — printable parts for the matrix bracket and strips, plus an optional screen cover that diffuses the LEDs for a cleaner look.
+- **[3D-printed frame](hardware/case/)** — printable parts (top/bottom strips or a single bracket) that hold the matrix and PCB together, plus an optional screen cover that diffuses the LEDs for a cleaner look.
 - **[iOS app](https://apps.apple.com/app/id6772027776)** — the companion app, on the App Store.
 
 ## License
@@ -54,7 +54,7 @@ Provision from the iOS app or the CLI. (The Wokwi simulator has no BLE — there
 Open and permissive © Sunil Sayala — free to use, build, modify, share, and sell, including commercially, with attribution.
 
 - **Firmware** — [Apache-2.0](LICENSE).
-- **Hardware design files** in [`hardware/`](hardware/) (PCB, mechanical, case STLs) — [CC BY 4.0](hardware/LICENSE).
+- **Hardware design files** in [`hardware/`](hardware/) (PCB, mechanical, frame STLs) — [CC BY 4.0](hardware/LICENSE).
 - **Python client** in [`tools/`](tools/) (the `led_ticker` package & `led` CLI) — [Apache-2.0](tools/LICENSE).
 
 Attribution is required by these licenses — please keep the credit; see [NOTICE](NOTICE).
