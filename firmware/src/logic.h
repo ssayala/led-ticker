@@ -30,6 +30,16 @@
 //   anything malformed (unknown token, empty) -> 0
 uint8_t parseModePayload(const char* in);
 
+// Cyclic rotation order of the category bits: STOCKS -> WEATHER -> CLOCK ->
+// STOCKS. Any non-category input falls through to BIT_STOCKS.
+uint8_t nextBit(uint8_t b);
+
+// Inverse of parseModePayload: render an enabled-category mask back to its
+// canonical string. `isSetup` short-circuits to "setup" (the display is in
+// MODE_SETUP, mask irrelevant). Returns the written length (snprintf
+// semantics). Round-trips: parseModePayload(formatModeName(mask)) == mask.
+int formatModeName(char* buf, size_t bufLen, uint8_t enabledMask, bool isSetup);
+
 // ---------------------------------------------------------------------------
 // Weather locations
 // ---------------------------------------------------------------------------
@@ -56,3 +66,11 @@ bool parseLocation(const char* entry, ResolvedLocation& out);
 // March 02:00 EST -> first Sunday of November 02:00 EDT). `u` must be a UTC tm;
 // the transition is resolved to the hour.
 bool usEasternInDst(const struct tm& u);
+
+// ---------------------------------------------------------------------------
+// US equity market hours
+// ---------------------------------------------------------------------------
+// True if the US stock market is open at UTC instant `now`: a weekday between
+// 09:30 and 16:00 US Eastern (DST-aware via usEasternInDst). Regular session
+// only — does not model exchange holidays. `now` is a UTC epoch.
+bool isMarketOpenAt(time_t now);

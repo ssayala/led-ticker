@@ -1,5 +1,6 @@
 #include "logic.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -32,6 +33,33 @@ uint8_t parseModePayload(const char* in) {
     tok = strtok(nullptr, ",");
   }
   return mask;
+}
+
+uint8_t nextBit(uint8_t b) {
+  if (b == BIT_STOCKS) return BIT_WEATHER;
+  if (b == BIT_WEATHER) return BIT_CLOCK;
+  return BIT_STOCKS;
+}
+
+int formatModeName(char* buf, size_t bufLen, uint8_t enabledMask, bool isSetup) {
+  if (isSetup) return snprintf(buf, bufLen, "setup");
+  if (enabledMask == 0) return snprintf(buf, bufLen, "none");
+  if (enabledMask == MASK_ALL) return snprintf(buf, bufLen, "all");
+  int len = 0;
+  const char* sep = "";
+  if (enabledMask & BIT_STOCKS) {
+    len += snprintf(buf + len, bufLen - len, "%sstocks", sep);
+    sep = ",";
+  }
+  if (enabledMask & BIT_WEATHER) {
+    len += snprintf(buf + len, bufLen - len, "%sweather", sep);
+    sep = ",";
+  }
+  if (enabledMask & BIT_CLOCK) {
+    len += snprintf(buf + len, bufLen - len, "%sclock", sep);
+    sep = ",";
+  }
+  return len;
 }
 
 bool parseLocation(const char* entry, ResolvedLocation& out) {
@@ -78,4 +106,17 @@ bool usEasternInDst(const struct tm& u) {
   int firstSunday = 1 + (7 - wdayFirst) % 7;
   if (u.tm_mday != firstSunday) return u.tm_mday < firstSunday;
   return u.tm_hour < 6;  // 2:00 EDT == 06:00 UTC
+}
+
+bool isMarketOpenAt(time_t now) {
+  struct tm utc;
+  gmtime_r(&now, &utc);
+
+  time_t etEpoch = now + (usEasternInDst(utc) ? -4 : -5) * 3600;
+  struct tm et;
+  gmtime_r(&etEpoch, &et);
+
+  if (et.tm_wday == 0 || et.tm_wday == 6) return false;
+  int minutes = et.tm_hour * 60 + et.tm_min;
+  return minutes >= 9 * 60 + 30 && minutes < 16 * 60;
 }

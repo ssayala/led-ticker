@@ -120,6 +120,83 @@ void test_dst_november_end_boundary(void) {
   TEST_ASSERT_FALSE(usEasternInDst(utc(2026, 11, 2, 0, 0)));   // day after
 }
 
+// ---------------------------------------------------------------------------
+// nextBit — cyclic rotation order
+// ---------------------------------------------------------------------------
+void test_next_bit_cycle(void) {
+  TEST_ASSERT_EQUAL_UINT8(BIT_WEATHER, nextBit(BIT_STOCKS));
+  TEST_ASSERT_EQUAL_UINT8(BIT_CLOCK, nextBit(BIT_WEATHER));
+  TEST_ASSERT_EQUAL_UINT8(BIT_STOCKS, nextBit(BIT_CLOCK));
+}
+
+// ---------------------------------------------------------------------------
+// formatModeName — inverse of parseModePayload
+// ---------------------------------------------------------------------------
+void test_format_setup(void) {
+  char buf[64];
+  formatModeName(buf, sizeof(buf), BIT_STOCKS, true);  // mask ignored when setup
+  TEST_ASSERT_EQUAL_STRING("setup", buf);
+}
+void test_format_named_masks(void) {
+  char buf[64];
+  formatModeName(buf, sizeof(buf), 0, false);
+  TEST_ASSERT_EQUAL_STRING("none", buf);
+  formatModeName(buf, sizeof(buf), MASK_ALL, false);
+  TEST_ASSERT_EQUAL_STRING("all", buf);
+}
+void test_format_subset_order(void) {
+  char buf[64];
+  formatModeName(buf, sizeof(buf), BIT_STOCKS | BIT_CLOCK, false);
+  TEST_ASSERT_EQUAL_STRING("stocks,clock", buf);
+}
+void test_format_parse_roundtrip(void) {
+  // Every non-empty subset survives format -> parse unchanged. The empty mask
+  // formats to "none", which parses back to the MASK_NONE_REQUEST sentinel (not
+  // 0) by design so applyPendingMode can tell "none" from invalid input.
+  for (uint8_t mask = 0; mask <= MASK_ALL; mask++) {
+    if (mask & ~MASK_ALL) continue;  // skip masks with reserved bits set
+    char buf[64];
+    formatModeName(buf, sizeof(buf), mask, false);
+    uint8_t expected = (mask == 0) ? MASK_NONE_REQUEST : mask;
+    TEST_ASSERT_EQUAL_UINT8(expected, parseModePayload(buf));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// isMarketOpenAt — weekday 09:30-16:00 US Eastern, DST-aware
+// ---------------------------------------------------------------------------
+static time_t utcEpoch(int year, int mon1, int mday, int hour, int min) {
+  struct tm t = {};
+  t.tm_year = year - 1900;
+  t.tm_mon = mon1 - 1;
+  t.tm_mday = mday;
+  t.tm_hour = hour;
+  t.tm_min = min;
+  return timegm(&t);
+}
+
+void test_market_weekday_open_dst(void) {
+  // Wed Jul 15 2026, 14:00 UTC == 10:00 EDT — open.
+  TEST_ASSERT_TRUE(isMarketOpenAt(utcEpoch(2026, 7, 15, 14, 0)));
+}
+void test_market_open_close_edges_dst(void) {
+  // EDT = UTC-4: open 13:30 UTC, close 20:00 UTC.
+  TEST_ASSERT_FALSE(isMarketOpenAt(utcEpoch(2026, 7, 15, 13, 29)));
+  TEST_ASSERT_TRUE(isMarketOpenAt(utcEpoch(2026, 7, 15, 13, 30)));
+  TEST_ASSERT_TRUE(isMarketOpenAt(utcEpoch(2026, 7, 15, 19, 59)));
+  TEST_ASSERT_FALSE(isMarketOpenAt(utcEpoch(2026, 7, 15, 20, 0)));
+}
+void test_market_open_edge_standard_time(void) {
+  // EST = UTC-5: open 14:30 UTC. Wed Jan 14 2026.
+  TEST_ASSERT_FALSE(isMarketOpenAt(utcEpoch(2026, 1, 14, 14, 29)));
+  TEST_ASSERT_TRUE(isMarketOpenAt(utcEpoch(2026, 1, 14, 14, 30)));
+}
+void test_market_weekend_closed(void) {
+  // Sat Jul 18 / Sun Jul 19 2026 midday — closed regardless of hour.
+  TEST_ASSERT_FALSE(isMarketOpenAt(utcEpoch(2026, 7, 18, 15, 0)));
+  TEST_ASSERT_FALSE(isMarketOpenAt(utcEpoch(2026, 7, 19, 15, 0)));
+}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -144,5 +221,14 @@ int main(int, char**) {
   RUN_TEST(test_dst_summer_true);
   RUN_TEST(test_dst_march_start_boundary);
   RUN_TEST(test_dst_november_end_boundary);
+  RUN_TEST(test_next_bit_cycle);
+  RUN_TEST(test_format_setup);
+  RUN_TEST(test_format_named_masks);
+  RUN_TEST(test_format_subset_order);
+  RUN_TEST(test_format_parse_roundtrip);
+  RUN_TEST(test_market_weekday_open_dst);
+  RUN_TEST(test_market_open_close_edges_dst);
+  RUN_TEST(test_market_open_edge_standard_time);
+  RUN_TEST(test_market_weekend_closed);
   return UNITY_END();
 }

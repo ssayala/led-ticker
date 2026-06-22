@@ -501,19 +501,8 @@ void initTime() {
 // NYSE 9:30–16:00 ET, weekdays. Derived from UTC so the user-configurable
 // display timezone has no effect here.
 bool isMarketOpen() {
-  if (!timeReady) return true;
-
-  time_t now = time(nullptr);
-  struct tm utc;
-  gmtime_r(&now, &utc);
-
-  time_t etEpoch = now + (usEasternInDst(utc) ? -4 : -5) * 3600;
-  struct tm et;
-  gmtime_r(&etEpoch, &et);
-
-  if (et.tm_wday == 0 || et.tm_wday == 6) return false;
-  int minutes = et.tm_hour * 60 + et.tm_min;
-  return minutes >= 9 * 60 + 30 && minutes < 16 * 60;
+  if (!timeReady) return true;  // pre-NTP: assume open so stocks still fetch
+  return isMarketOpenAt(time(nullptr));
 }
 
 // ============================================================================
@@ -886,12 +875,6 @@ static bool bitHasData(uint8_t b) {
   return false;
 }
 
-static uint8_t nextBit(uint8_t b) {
-  if (b == BIT_STOCKS) return BIT_WEATHER;
-  if (b == BIT_WEATHER) return BIT_CLOCK;
-  return BIT_STOCKS;
-}
-
 // Advance currentBit to the next enabled bit that has data. If no enabled
 // bit has data, leave currentBit unchanged so showNext can show a loading hint.
 static void advanceCategory() {
@@ -982,27 +965,6 @@ void enterIdle() {
 // Mode string for BLE reads/logs: "setup", "none", "all", or a comma list.
 // MODE_IDLE reports the underlying enabledMask (the categories that will
 // rotate once prereqs are met); "none" is the explicit persisted selection.
-static int formatModeName(char* buf, size_t bufLen) {
-  if (currentMode == MODE_SETUP) return snprintf(buf, bufLen, "setup");
-  if (enabledMask == 0) return snprintf(buf, bufLen, "none");
-  if (enabledMask == MASK_ALL) return snprintf(buf, bufLen, "all");
-  int len = 0;
-  const char* sep = "";
-  if (enabledMask & BIT_STOCKS) {
-    len += snprintf(buf + len, bufLen - len, "%sstocks", sep);
-    sep = ",";
-  }
-  if (enabledMask & BIT_WEATHER) {
-    len += snprintf(buf + len, bufLen - len, "%sweather", sep);
-    sep = ",";
-  }
-  if (enabledMask & BIT_CLOCK) {
-    len += snprintf(buf + len, bufLen - len, "%sclock", sep);
-    sep = ",";
-  }
-  return len;
-}
-
 void exitSetupIfReady() {
   // SETUP resumes into setupTargetMask, IDLE into enabledMask, once prereqs
   // are met. Explicit mask=0 ("none") in IDLE is sticky — never exits.
@@ -1017,7 +979,7 @@ void exitSetupIfReady() {
   }
   enterContent();
   char buf[64];
-  formatModeName(buf, sizeof(buf));
+  formatModeName(buf, sizeof(buf), enabledMask, currentMode == MODE_SETUP);
   Serial.printf("Prereqs satisfied, exiting to %s\r\n", buf);
 }
 
@@ -1771,7 +1733,8 @@ class ModeCallbacks : public GatedStashCallbacks {
 
   void onRead(NimBLECharacteristic* pChar) override {
     char buf[64];
-    int len = formatModeName(buf, sizeof(buf));
+    int len = formatModeName(buf, sizeof(buf), enabledMask,
+                             currentMode == MODE_SETUP);
     pChar->setValue((uint8_t*)buf, len);
   }
 };
@@ -1807,7 +1770,7 @@ void applyPendingMode() {
     }
   }
   char buf[64];
-  formatModeName(buf, sizeof(buf));
+  formatModeName(buf, sizeof(buf), enabledMask, currentMode == MODE_SETUP);
   Serial.printf("BLE: mode -> %s\r\n", buf);
 }
 
