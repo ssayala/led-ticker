@@ -46,7 +46,7 @@ Provision from the iOS app or the CLI. (The Wokwi simulator has no BLE — there
 - **[BLE protocol](BLE_PROTOCOL.md)** — UUIDs, payloads, and semantics for custom clients.
 - **[Firmware guide](firmware/FIRMWARE_GUIDE.md)** — firmware internals: dual-core model, display state machine, and how to extend it.
 - **[Custom PCB](hardware/pcb/README.md)** — board sources, render, and ordering.
-- **[3D-printed frame](hardware/case/)** — printable parts (top/bottom strips or a single bracket) that hold the matrix and PCB together, plus an optional screen cover that diffuses the LEDs for a cleaner look.
+- **[3D-printed frame](hardware/case/)** — printable parts (top/bottom strips or a single bracket) that hold the matrix and PCB together.
 - **[iOS app](https://apps.apple.com/app/id6772027776)** — the companion app, on the App Store.
 
 ## License
