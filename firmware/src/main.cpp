@@ -16,6 +16,27 @@
 #include "version.h"
 
 // ============================================================================
+// File map — read setup() and loop() (bottom, under "Main") first; they are the
+// entry points. Everything above them is the units they orchestrate, ordered so
+// each definition precedes its first use (C++ requirement, hence entry-points-
+// last). Top to bottom:
+//
+//   Mode bits & hardware constants  — display layers, pins
+//   Forward decls                   — the few vars defined out of order
+//   NVS: <wifi|apikey|pin|tickers|locations|mask|display|timezone>
+//                                   — persisted config; each a save*/load* pair
+//   Setup- & active-status state    — RAM-only display state
+//   Display / Status LED / Time     — matrix, NeoPixel, NTP + market hours
+//   Network fetch                   — Core-0 task hitting Finnhub / MET Norway
+//   WiFi connect
+//   Display rotation & rendering    — showNext() and the per-mode tick*() drawers
+//   BLE                             — characteristics + deferred applyPending*()
+//   Main                            — pollResetButton, setup(), console, loop()
+//
+// Pure, host-tested helpers live in logic.{h,cpp}, not here.
+// ============================================================================
+
+// ============================================================================
 // Mode bits
 // ============================================================================
 // An active status sign overrides both modes until expiry/clear.
@@ -2443,6 +2464,32 @@ static int crlfLogVprintf(const char* fmt, va_list args) {
   return n;
 }
 
+// Load every persisted setting from NVS into its in-RAM mirror. Display
+// settings must load before initDisplay() so the first frame uses the saved
+// brightness — call this only after initDisplay() for the rest, or split as
+// setup() does.
+static void loadConfigFromNVS() {
+  loadWifiFromNVS();
+  loadApiKeyFromNVS();
+  loadTickersFromNVS();
+  loadLocationsFromNVS();
+  loadDisplayMaskFromNVS();
+  loadTimezoneFromNVS();
+  loadPinFromNVS();
+}
+
+// Pick the boot mode from the persisted mask: nothing enabled → idle clock;
+// enabled but prereqs unmet (no WiFi / API key) → setup scroll; otherwise the
+// normal content rotation.
+static void enterBootMode() {
+  if (enabledMask == 0)
+    enterIdle();
+  else if (!maskPrereqsReady(enabledMask))
+    enterSetup(enabledMask);
+  else
+    enterContent();
+}
+
 void setup() {
   Serial.begin(115200);
   // USB-CDC default is a 250 ms blocking write timeout — headless, every
@@ -2476,20 +2523,9 @@ void setup() {
   // Before initDisplay() so the first frame uses the persisted brightness.
   loadDisplaySettingsFromNVS();
   initDisplay();
-  loadWifiFromNVS();
-  loadApiKeyFromNVS();
-  loadTickersFromNVS();
-  loadLocationsFromNVS();
-  loadDisplayMaskFromNVS();
-  loadTimezoneFromNVS();
-  loadPinFromNVS();
+  loadConfigFromNVS();
   buildDeviceName();
-  if (enabledMask == 0)
-    enterIdle();
-  else if (!maskPrereqsReady(enabledMask))
-    enterSetup(enabledMask);
-  else
-    enterContent();
+  enterBootMode();
   showNext();
 
   connectWifi();
@@ -2729,20 +2765,21 @@ void pollSerialConsole() {
 #endif  // CONSOLE_ENABLED
 }
 
-void loop() {
-  // Heartbeat: matrix frozen but heartbeats coming → SPI/Parola stuck;
-  // heartbeats stopped → whole loop hung.
+// Periodic liveness line: matrix frozen but heartbeats coming → SPI/Parola
+// stuck; heartbeats stopped → whole loop hung.
+static void heartbeat(unsigned long nowMs) {
   static unsigned long lastHeartbeatMs = 0;
-  unsigned long nowMs = millis();
-  if (nowMs - lastHeartbeatMs > 30000) {
-    lastHeartbeatMs = nowMs;
-    Serial.printf(
-        "[hb] v%s mode=%d mask=0x%02X fetching=%d heap=%u min=%u millis=%lu\r\n",
-        FW_VERSION, currentMode, enabledMask, fetching,
-        (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMinFreeHeap(), nowMs);
-  }
+  if (nowMs - lastHeartbeatMs <= 30000) return;
+  lastHeartbeatMs = nowMs;
+  Serial.printf(
+      "[hb] v%s mode=%d mask=0x%02X fetching=%d heap=%u min=%u millis=%lu\r\n",
+      FW_VERSION, currentMode, enabledMask, fetching, (unsigned)ESP.getFreeHeap(),
+      (unsigned)ESP.getMinFreeHeap(), nowMs);
+}
 
-  pollSerialConsole();  // serial console feeds the same pending* flags below
+// Drain the deferred-apply flags set by BLE callbacks (Core 0) and the serial
+// console. Each applyPending*() does the heavy work the callback deferred.
+static void applyPendingUpdates() {
   if (wifiUpdatePending) applyPendingWifi();
   if (apiKeyUpdatePending) applyPendingApiKey();
   if (cmdPending) applyPendingCmd();
@@ -2753,6 +2790,32 @@ void loop() {
   if (powerUpdatePending) applyPendingPower();
   if (displayCfgUpdatePending) applyPendingDisplayCfg();
   if (tzUpdatePending) applyPendingTimezone();
+}
+
+// Render one frame for the currently active layer, in priority order: timer >
+// sign > idle clock > static clock > ambient rotation. Caller has already
+// handled the reset countdown and displayOff cases that own the display.
+static void renderActiveFrame() {
+  if (timerPhase != TIMER_OFF) {
+    tickTimer();
+  } else if (checkStatusForRender()) {
+    tickActiveStatus();
+  } else if (currentMode == MODE_IDLE) {
+    tickIdle();
+  } else if (currentMode == MODE_CONTENT && enabledMask == BIT_CLOCK &&
+             timeReady) {
+    tickStaticClock();
+  } else if (display.displayAnimate()) {
+    display.displayReset();
+    showNext();
+  }
+}
+
+void loop() {
+  heartbeat(millis());
+
+  pollSerialConsole();  // serial console feeds the same pending* flags
+  applyPendingUpdates();
 
   updateStatusLed();
   if (pollResetButton() || tickResetCountdown()) {
@@ -2781,19 +2844,7 @@ void loop() {
     return;
   }
 
-  if (timerPhase != TIMER_OFF) {
-    tickTimer();
-  } else if (checkStatusForRender()) {
-    tickActiveStatus();
-  } else if (currentMode == MODE_IDLE) {
-    tickIdle();
-  } else if (currentMode == MODE_CONTENT && enabledMask == BIT_CLOCK &&
-             timeReady) {
-    tickStaticClock();
-  } else if (display.displayAnimate()) {
-    display.displayReset();
-    showNext();
-  }
+  renderActiveFrame();
 
   if (millis() - lastFetch > FETCH_INTERVAL_MS) {
     lastFetch = millis();
