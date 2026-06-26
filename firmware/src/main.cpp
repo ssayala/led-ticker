@@ -1774,6 +1774,9 @@ void applyPendingMode() {
     Serial.printf("BLE: unknown/empty mode \"%s\", ignoring\r\n", pendingModeStr);
     return;
   }
+  // enter*() below resets the display buffer; drop the sign's render cache so
+  // an active sign repaints on the next tick instead of staying blank.
+  invalidateStatusRender();
   if (mask == MASK_NONE_REQUEST) {
     enabledMask = 0;
     saveDisplayMaskToNVS();
