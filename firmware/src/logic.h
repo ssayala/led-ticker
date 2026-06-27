@@ -54,7 +54,7 @@ struct ResolvedLocation {
 };
 
 // Parse a "lat,lon,label" entry into coordinates + display label. The client
-// (iOS app / CLI) does the geocoding; the device never resolves place names. No
+// (companion app / CLI) does the geocoding; the device never resolves place names. No
 // network. Returns false on a malformed entry or out-of-range coordinates,
 // leaving out.ok false so the fetch skips it.
 bool parseLocation(const char* entry, ResolvedLocation& out);

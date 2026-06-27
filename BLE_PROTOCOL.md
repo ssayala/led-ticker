@@ -49,10 +49,10 @@ Write `text|N` to set, empty payload to clear.
 - Reads return `text|M` where `M` is seconds remaining (`0` if indefinite), or empty string when no status is active.
 - **RAM-only** — a power cycle clears any active sign and resumes ambient.
 - Timed signs use the MCU's monotonic `millis()` counter, so they work without WiFi/NTP.
-- There is no preset library on the device; preset chips are managed client-side (e.g. the iOS app's local list).
+- There is no preset library on the device; preset chips are managed client-side (e.g. a companion app's local list).
 
 ### Locations
-Pipe-separated `lat,lon,label` triplets — `47.61,-122.33,Seattle|47.67,-122.12,Redmond`. Up to 5 entries, 47 chars each. The **client** geocodes place names to coordinates — the iOS app uses CoreLocation; CLI users look up `lat`/`lon` themselves — so the device never contacts a geocoding service. `lat`/`lon` are decimal degrees; `label` is the text shown on the matrix (≤23 chars, may contain commas — only the first two commas are delimiters). Malformed or out-of-range entries are skipped.
+Pipe-separated `lat,lon,label` triplets — `47.61,-122.33,Seattle|47.67,-122.12,Redmond`. Up to 5 entries, 47 chars each. The **client** geocodes place names to coordinates — companion apps use the phone's location APIs; CLI users look up `lat`/`lon` themselves — so the device never contacts a geocoding service. `lat`/`lon` are decimal degrees; `label` is the text shown on the matrix (≤23 chars, may contain commas — only the first two commas are delimiters). Malformed or out-of-range entries are skipped.
 
 ### Command
 Write-only.
@@ -91,14 +91,14 @@ Write a POSIX TZ string — e.g. `PST8PDT,M3.2.0,M11.1.0` (US Pacific) or `IST-5
 
 - Persisted to NVS; applied to the display clock immediately. Factory reset reverts to the `config.h` default (US Pacific).
 - NYSE market hours are computed in Eastern Time from UTC, independent of this setting.
-- The iOS app maps a human-readable timezone picker to these strings; the raw format is only needed from the CLI.
+- Companion apps map a human-readable timezone picker to these strings; the raw format is only needed from the CLI.
 - Older firmwares won't expose this characteristic.
 
 ### Auth
 
 A BLE connection is "authenticated" (allowed to write to non-Auth characteristics) once either of these happens:
 
-1. **Bonded link:** The device advertises passkey-entry pairing (`bond=true, MITM=true, SC=true`, IO cap `DISPLAY_ONLY`) and asks the central to pair on every fresh connection. iOS shows its native "Bluetooth Pairing Request" dialog, and the user types the 6-digit PIN from the LED matrix.
+1. **Bonded link:** The device advertises passkey-entry pairing (`bond=true, MITM=true, SC=true`, IO cap `DISPLAY_ONLY`) and asks the central to pair on every fresh connection. The phone shows its native pairing dialog, and the user types the 6-digit PIN from the LED matrix.
 2. **PIN write:** The client writes the 6-digit PIN to the Auth characteristic (`…26b2`, write-only). On match, the connection is authenticated for its lifetime. This is the fallback for clients that decline pairing (e.g., Python CLI on Linux).
 
 Reads always work — auth gates writes only.

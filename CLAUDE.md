@@ -19,7 +19,7 @@ Run from the repo root. Press the physical reset button after flashing.
 Compact ESP32-S3 firmware — `firmware/src/main.cpp` plus small host-tested pure units (`console.*`, `logic.*`) — driving a DIYables 4-in-1 MAX7219 matrix. Two orthogonal display layers, each set independently over BLE:
 
 - **Ambient rotation** — stocks (Finnhub), weather (MET Norway current conditions; locations are geocoded by the client and sent as `lat,lon,label`), clock (NTP). Controlled by an enabled-category bitmask.
-- **Active status (sign mode)** — text that overrides ambient until expiry/clear (≤5 chars steady, longer scrolls), or a countdown timer (`timer <min>` Command verb) — mutually exclusive with the text sign. Preset chips live in the iOS app, not on-device.
+- **Active status (sign mode)** — text that overrides ambient until expiry/clear (≤5 chars steady, longer scrolls), or a countdown timer (`timer <min>` Command verb) — mutually exclusive with the text sign. Preset chips live in the companion app, not on-device.
 
 Missing prereqs (WiFi creds, Finnhub key) divert to `MODE_SETUP`.
 
@@ -36,12 +36,12 @@ Missing prereqs (WiFi creds, Finnhub key) divert to `MODE_SETUP`.
 - No build-time secrets — `firmware/src/secrets.h` does not exist. `config.h` is compile-time defaults only.
 - **NVS namespaces:** `wifi`, `apikey`, `tickers`, `locs`, `display` (keys `mask`, `bright`, `scroll`), `time` (key `tz`), `pin` (keys `code`, `on`). `msgs`/`status` are tombstones.
 - Fetched quotes/weather and the active sign are RAM-only — a power cycle clears the sign and resumes ambient.
-- **BLE name:** `LED-Ticker-XXXX` (low 2 bytes of chip MAC) — primary control plane. CLI: `uv run tools/led.py <cmd>` (thin shim over the `led_ticker` package in `tools/src/`; `pip install led-ticker` also gives a `led` command). Use `led.py devices` to list units and `--device XXXX` to target one when several are in range. The iOS app in `ios/` uses the same service; BLE is the contract, so iOS iteration needs no firmware change.
+- **BLE name:** `LED-Ticker-XXXX` (low 2 bytes of chip MAC) — primary control plane. CLI: `uv run tools/led.py <cmd>` (thin shim over the `led_ticker` package in `tools/src/`; `pip install led-ticker` also gives a `led` command). Use `led.py devices` to list units and `--device XXXX` to target one when several are in range. Companion mobile apps use the same service; BLE is the contract, so app iteration needs no firmware change.
 - **Serial console:** a USB-serial command path (`src/console.{h,cpp}` pure parser + `dispatchConsoleCmd`/`pollSerialConsole` in `main.cpp`) mirrors every BLE verb by writing the same `pending*` buffers — for dev/test and as the **only** control path in Wokwi (BLE isn't simulated). Bypasses the PIN gate (physical USB already allows reflashing). Compiled out on real hardware via `CONSOLE_ENABLED` (`config.h` default 1; `env:esp32-s3` sets `-DCONSOLE_ENABLED=0`, `env:wokwi` keeps it on). `wifi <ssid>` (no pass) = open network; `sign` composes `text|0`. Details in [`firmware/FIRMWARE_GUIDE.md`](firmware/FIRMWARE_GUIDE.md).
 
 ## BLE auth
 
-Every write characteristic is gated on `isConnAuthed()` while enforcement is on (default; `Command=pin-enforce off` disables). Two paths to authed: passkey bonding (iOS native PIN dialog — `onPassKeyRequest` returns the NVS PIN) or writing the PIN to the Auth characteristic (CLI fallback). The PIN is shown on the LED in setup mode and on serial at every boot; factory reset rotates it. Details in [`BLE_PROTOCOL.md`](BLE_PROTOCOL.md#auth).
+Every write characteristic is gated on `isConnAuthed()` while enforcement is on (default; `Command=pin-enforce off` disables). Two paths to authed: passkey bonding (the phone's native PIN dialog — `onPassKeyRequest` returns the NVS PIN) or writing the PIN to the Auth characteristic (CLI fallback). The PIN is shown on the LED in setup mode and on serial at every boot; factory reset rotates it. Details in [`BLE_PROTOCOL.md`](BLE_PROTOCOL.md#auth).
 
 ## Rules for editing
 
@@ -54,4 +54,4 @@ Every write characteristic is gated on `isConnAuthed()` while enforcement is on 
 
 ## Versioning
 
-`FW_VERSION` in `firmware/src/version.h`, bumped manually. Release = bump + commit + git tag (`v0.3.0`) on the same commit, flash and confirm the version on serial or in the iOS app, then `git push && git push --tags`.
+`FW_VERSION` in `firmware/src/version.h`, bumped manually. Release = bump + commit + git tag (`v0.3.0`) on the same commit, flash and confirm the version on serial or in the companion app, then `git push && git push --tags`.

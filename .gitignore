@@ -8,6 +8,7 @@ tools/uv.lock
 .superpowers/
 specs/
 ios/
+android/
 docs/
 .DS_Store
 notes/
@@ -15,3 +16,4 @@ assets/features-landscape.png
 assets/device-sketch-hires.png
 .antigravitycli/
 dist/
+CLAUDE.local.md

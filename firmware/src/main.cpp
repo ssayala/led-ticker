@@ -1430,7 +1430,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
       if (s) s->authed = true;
       return;
     }
-    // Pairing failed/cancelled: drop the connection so the iOS app retries
+    // Pairing failed/cancelled: drop the connection so the app retries
     // with a fresh pair prompt, instead of silently eating every write.
     // Exception: a client already authed via the PIN path stays.
     if (s && s->authed) return;
@@ -1441,7 +1441,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     NimBLEDevice::getServer()->disconnect(desc->conn_handle);
   }
   uint32_t onPassKeyRequest() override {
-    // SMP compares this against what the user typed on iOS.
+    // SMP compares this against what the user typed on the phone.
     uint32_t key = (uint32_t)strtoul(nvsPin, nullptr, 10);
     Serial.printf("BLE auth: passkey requested, serving %06u\r\n", (unsigned)key);
     return key;
@@ -1968,7 +1968,7 @@ void applyPendingPower() {
   buf[sizeof(buf) - 1] = '\0';
   powerUpdatePending = false;
 
-  // Tolerant of " ON\n", "Off", etc. — iOS and led.py both send unadorned
+  // Tolerant of " ON\n", "Off", etc. — companion apps and led.py both send unadorned
   // tokens but a manual BLE GUI client may add trailing whitespace.
   char* p = buf;
   while (*p == ' ' || *p == '\t') p++;
@@ -2329,7 +2329,7 @@ void applyPendingCmd() {
 void initBLE() {
   NimBLEDevice::init(bleDeviceName);
   NimBLEDevice::setMTU(512);
-  // Passkey-entry bonding (bond + MITM + SC, DISPLAY_ONLY): iOS pops its
+  // Passkey-entry bonding (bond + MITM + SC, DISPLAY_ONLY): the phone pops its
   // native PIN dialog, served by onPassKeyRequest.
   NimBLEDevice::setSecurityAuth(true, true, true);
   NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);

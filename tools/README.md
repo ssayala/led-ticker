@@ -1,6 +1,6 @@
 # `led_ticker` — Python library & CLI for the LED Ticker
 
-`led_ticker` speaks the same BLE service as the iOS app, so you can drive the
+`led_ticker` speaks the same BLE service as the companion mobile app, so you can drive the
 device — or build your own tools — from any machine with Bluetooth. The device
 advertises as `LED-Ticker-XXXX`.
 
@@ -93,7 +93,7 @@ uv run tools/led.py display brightness 8     # brightness 0-15
 uv run tools/led.py display speed 50         # scroll ms/step 20-500 (lower = faster)
 uv run tools/led.py display 8 50             # both at once
 
-# Timezone (persisted; POSIX TZ string — the iOS app has a friendly picker)
+# Timezone (persisted; POSIX TZ string — companion apps have a friendly picker)
 uv run tools/led.py timezone                              # show current
 uv run tools/led.py timezone "EST5EDT,M3.2.0,M11.1.0"     # US Eastern
 
@@ -119,7 +119,7 @@ uv run tools/led.py reload                # force stock refresh
 uv run tools/led.py reset                 # wipe NVS, rotate PIN, revert to config.h defaults
 ```
 
-Save once, every platform: run `led.py pin <6 digits>` a single time and it's replayed on each connection automatically — no per-command `--pin`, on Linux, Windows, and macOS alike. (The iOS app instead uses OS-level Bluetooth *bonding* — iOS prompts for the PIN once and the OS remembers it; the CLI never bonds.)
+Save once, every platform: run `led.py pin <6 digits>` a single time and it's replayed on each connection automatically — no per-command `--pin`, on Linux, Windows, and macOS alike. (Companion mobile apps instead use OS-level Bluetooth *bonding* — the phone prompts for the PIN once and the OS remembers it; the CLI never bonds.)
 
 PIN resolution: every command (and the library) looks for the PIN in this order — `--pin XXXXXX` flag → `LED_TICKER_PIN` env var → the saved cache file (`~/.config/led-ticker/pin`). The env var suits CI or anyone who'd rather not write the PIN to disk. If none is found and the device has enforcement on, writes fail with a clear `AuthError`.
 

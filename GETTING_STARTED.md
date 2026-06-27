@@ -36,7 +36,7 @@ Onboard RGB LED (GPIO 48) lights blue during network fetches. The Freenove board
 
 ## First-boot pairing
 
-- **iOS:** open the app, tap the device. iOS pops a system "Bluetooth Pairing Request" dialog — type the PIN. Bonded. Future reconnects skip the dialog.
+- **Phone app:** open the app, tap the device. The phone pops a system pairing dialog — type the PIN. Bonded. Future reconnects skip the dialog.
 - **CLI:** save the PIN once; future calls auto-include it (see the [CLI tool](tools/README.md)):
   ```
   uv run tools/led.py pin 482913

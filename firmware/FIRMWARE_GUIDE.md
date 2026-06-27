@@ -59,7 +59,7 @@ When several things want the screen at once, this is the priority order: a facto
 
 ## How it's controlled
 
-**Bluetooth is the real control plane** — the iOS app talks to it, and that contract (the protocol) is what lets the app evolve without firmware changes. A **USB serial console** mirrors every command; it's there for development and is the only way to drive the device in the Wokwi simulator, where Bluetooth isn't available.
+**Bluetooth is the real control plane** — the companion app talks to it, and that contract (the protocol) is what lets the app evolve without firmware changes. A **USB serial console** mirrors every command; it's there for development and is the only way to drive the device in the Wokwi simulator, where Bluetooth isn't available.
 
 Configuration writes are PIN-gated. The PIN shows on the panel during setup and prints to serial at every boot.
 
