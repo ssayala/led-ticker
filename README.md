@@ -15,14 +15,14 @@ Desk sign + ambient ticker built on an ESP32-S3 and a DIYables 4-in-1 MAX7219 LE
 - **Live data** — stock quotes (Finnhub) and multi-location weather (MET Norway).
 - **12-hour clock** — steady `H:MM` when shown alone, scrolls `H:MM AM/PM` when mixed in.
 - **Display on/off** — blank the matrix and pause fetches without losing the saved ambient mode.
-- **Adjustable brightness & scroll speed** — set from the iOS app or CLI, applied live and persisted on the device.
-- **Companion [iOS app](https://apps.apple.com/app/id6772027776)** — multi-device switcher, preset chip grid, and per-category display toggles.
+- **Adjustable brightness & scroll speed** — set from the mobile app or CLI, applied live and persisted on the device.
+- **Companion mobile app** — multi-device switcher, preset chip grid, and per-category display toggles, on [iOS](https://apps.apple.com/app/id6772027776) and [Android](https://github.com/ssayala/led-ticker-android).
 - **Configured entirely over BLE** — no build-time secrets; WiFi, Finnhub key, tickers, locations, mode, timezone, and active sign all set wirelessly and persisted.
 - **PIN-gated BLE** — every write requires a 6-digit PIN, generated on first boot and rotated on factory reset.
 - **Factory reset** — hold the BOOT button for 10 s to wipe all settings, forget every BLE bond, and reboot into setup mode with a fresh PIN.
 
 <p align="center">
-  <img src="assets/features.jpg" alt="Illustrated features guide: sign mode, countdown timer, live stocks and weather, the iOS companion app, and factory reset" width="720">
+  <img src="assets/features.jpg" alt="Illustrated features guide: sign mode, countdown timer, live stocks and weather, the companion mobile app, and factory reset" width="720">
 </p>
 
 ## Hardware
@@ -37,7 +37,7 @@ A [Freenove ESP32-S3-WROOM (FNK0099)](https://store.freenove.com/products/fnk009
 
 No toolchain? Flash released firmware straight from a browser at **[ledticker.app/flash](https://ledticker.app/flash)**.
 
-Provision from the iOS app or the CLI. (The Wokwi simulator has no BLE — there you provision over a [USB serial console](GETTING_STARTED.md#provisioning-over-usb-serial-opt-in--wokwi) instead.)
+Provision from the mobile app or the CLI. (The Wokwi simulator has no BLE — there you provision over a [USB serial console](GETTING_STARTED.md#provisioning-over-usb-serial-opt-in--wokwi) instead.)
 
 ## Documentation
 
@@ -47,7 +47,7 @@ Provision from the iOS app or the CLI. (The Wokwi simulator has no BLE — there
 - **[Firmware guide](firmware/FIRMWARE_GUIDE.md)** — firmware internals: dual-core model, display state machine, and how to extend it.
 - **[Custom PCB](hardware/pcb/README.md)** — board sources, render, and ordering.
 - **[3D-printed frame](hardware/case/)** — printable parts (top/bottom strips or a single bracket) that hold the matrix and PCB together.
-- **[iOS app](https://apps.apple.com/app/id6772027776)** — the companion app, on the App Store.
+- **Companion mobile app** — [iOS](https://apps.apple.com/app/id6772027776) (App Store) and [Android](https://github.com/ssayala/led-ticker-android) (open source).
 
 ## License
 

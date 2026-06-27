@@ -17,3 +17,7 @@ assets/device-sketch-hires.png
 .antigravitycli/
 dist/
 CLAUDE.local.md
+
+# Android signing keys — never commit
+*.jks
+*.keystore
