@@ -48,7 +48,7 @@ Provision from the mobile app or the CLI. (The Wokwi simulator has no BLE — th
 
 ## License
 
-Open and permissive © Sunil Sayala — free to use, build, modify, share, and sell, including commercially, with attribution.
+Open and permissive — free to use, build, modify, share, and sell, including commercially, with attribution.
 
 - **Firmware** — [Apache-2.0](LICENSE).
 - **Hardware design files** in [`hardware/`](hardware/) (PCB, mechanical, frame STLs) — [CC BY 4.0](hardware/LICENSE).
