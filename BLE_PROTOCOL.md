@@ -45,7 +45,7 @@ The Status characteristic is **orthogonal** to the mode mask: an active sign ove
 Write `text|N` to set, empty payload to clear.
 
 - `N` is unsigned integer *seconds* until auto-clear; `N=0` means indefinite (until cleared).
-- Text up to 96 bytes, rendered in a bold font. Short text (≤4 chars) displays steady; longer text scrolls.
+- Text up to 96 bytes. Short text (≤4 chars) displays steady; longer text scrolls.
 - Reads return `text|M` where `M` is seconds remaining (`0` if indefinite), or empty string when no status is active.
 - **RAM-only** — a power cycle clears any active sign and resumes ambient.
 - Timed signs use the MCU's monotonic `millis()` counter, so they work without WiFi/NTP.

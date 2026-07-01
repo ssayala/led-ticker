@@ -16,7 +16,7 @@ Run from the repo root. Press the physical reset button after flashing.
 
 ## Project Overview
 
-Compact ESP32-S3 firmware — `firmware/src/main.cpp` plus small host-tested pure units (`console.*`, `logic.*`) — driving a 4-in-1 MAX7219 (FC16) matrix. Everything renders in a bold font (`firmware/src/bold_font.h`, a widened variant of the MD_MAX72XX built-in, set once at init). Two orthogonal display layers, each set independently over BLE:
+Compact ESP32-S3 firmware — `firmware/src/main.cpp` plus small host-tested pure units (`console.*`, `logic.*`) — driving a 4-in-1 MAX7219 (FC16) matrix. Two orthogonal display layers, each set independently over BLE:
 
 - **Ambient rotation** — stocks (Finnhub), weather (MET Norway current conditions; locations are geocoded by the client and sent as `lat,lon,label`), clock (NTP). Controlled by an enabled-category bitmask.
 - **Active status (sign mode)** — text that overrides ambient until expiry/clear (≤4 chars steady, longer scrolls), or a countdown timer (`timer <min>` Command verb) — mutually exclusive with the text sign. Preset chips live in the companion app, not on-device.
