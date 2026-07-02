@@ -448,19 +448,54 @@ MD_Parola display = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 // only one is ever active, and we overwrite only when starting the next scroll.
 static char scrollBuf[MAX_STRING_LEN + 1];
 
+// The panel uses two faces: the bold face (bold_font.h) for static content and
+// the library's built-in system font for anything that scrolls — bold's 2px
+// strokes ghost in motion, and the thin stock font stays crisp even at a fast
+// scroll. setFont(nullptr) selects _sysfont (MD_MAX72xx_font.cpp). The scroll
+// face is plain mixed-case stock; only the static face is all-caps.
+// setFont only takes effect at the next text parse (displayText/displayScroll or
+// a displayReset re-parse). Static sites assert the bold face right before
+// rendering; every scroll routes through scrollTextAt(), so the scroll face is
+// structural rather than remembered per site. const_cast is safe: setFont only
+// reads the table (pgm_read_byte).
+static void useStaticFont() {
+  display.setFont(const_cast<MD_MAX72XX::fontType_t*>(BOLD_FONT));
+}
+static void useScrollFont() {
+  display.setFont(nullptr);  // built-in system font
+}
+
 void initDisplay() {
   SPI.begin(CLK_PIN, -1, DIN_PIN, CS_PIN);
   display.begin();
-  // Everything on the panel uses the bold face — set it once here. const_cast is
-  // safe: setFont only ever reads the table (pgm_read_byte). See bold_font.h.
-  display.setFont(const_cast<MD_MAX72XX::fontType_t*>(BOLD_FONT));
+  useStaticFont();  // a face must be set before first render; call sites reassert
   display.setIntensity(displayBrightness);
   display.displayClear();
 }
 
-void scrollText(const char* msg) {
-  display.displayScroll(msg, PA_LEFT, PA_SCROLL_LEFT, scrollSpeedMs);
+// The one scroll primitive — every scrolling path routes here, so the thin
+// scroll face is set in a single place. scrollText() uses the user's configured
+// speed; callers that need a different speed (setup) pass it explicitly.
+//
+// The stock scroll font has real lowercase glyphs, but the panel's identity is
+// all-caps (the static face folds a-z onto A-Z), so we fold here too — keeping
+// the case uniform between static and scrolling content whatever the input. The
+// uppercased copy lands in scrollBuf because MD_Parola keeps the pointer, not a
+// copy, so it must outlive the scroll; a self-copy (callers passing scrollBuf)
+// is safe since dst and src index in lockstep. Only ASCII a-z folds — the
+// degree symbol and arrows (high-bit bytes) pass through untouched.
+void scrollTextAt(const char* msg, uint16_t speedMs) {
+  size_t i = 0;
+  for (; msg[i] && i < sizeof(scrollBuf) - 1; i++) {
+    char c = msg[i];
+    scrollBuf[i] = (c >= 'a' && c <= 'z') ? c - 'a' + 'A' : c;
+  }
+  scrollBuf[i] = '\0';
+  useScrollFont();
+  display.displayScroll(scrollBuf, PA_LEFT, PA_SCROLL_LEFT, speedMs);
 }
+
+void scrollText(const char* msg) { scrollTextAt(msg, scrollSpeedMs); }
 
 // ============================================================================
 // Status LED (onboard NeoPixel)
@@ -830,6 +865,7 @@ void tickStaticClock() {
   snprintf(scrollBuf, sizeof(scrollBuf), "%d:%02d", h12, t.tm_min);
 
   display.displayClear();
+  useStaticFont();
   display.displayText(scrollBuf, PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
   display.displayAnimate();
 
@@ -1025,8 +1061,8 @@ void showNextSetup() {
     strncpy(lastBuiltPin, nvsPin, sizeof(lastBuiltPin) - 1);
     lastBuiltPin[sizeof(lastBuiltPin) - 1] = '\0';
   }
-  // Bypasses scrollText() to use the slower SETUP_SCROLL_SPEED.
-  display.displayScroll(buf, PA_LEFT, PA_SCROLL_LEFT, SETUP_SCROLL_SPEED);
+  // Slower than the user's configured speed, but the same scroll primitive.
+  scrollTextAt(buf, SETUP_SCROLL_SPEED);
 }
 
 void showNext() {
@@ -1131,8 +1167,9 @@ void tickActiveStatus() {
     if (statusShownIsScroll) {
       strncpy(scrollBuf, activeStatusText, sizeof(scrollBuf) - 1);
       scrollBuf[sizeof(scrollBuf) - 1] = '\0';
-      display.displayScroll(scrollBuf, PA_LEFT, PA_SCROLL_LEFT, scrollSpeedMs);
+      scrollText(scrollBuf);
     } else {
+      useStaticFont();
       display.displayText(activeStatusText, PA_CENTER, 0, 0, PA_PRINT,
                           PA_NO_EFFECT);
       display.displayAnimate();
@@ -1329,6 +1366,7 @@ void tickTimer() {
   // re-render as garbage on the next FSM step.
   static char buf[6];  // "MM:SS" + NUL, max "99:00"
   snprintf(buf, sizeof(buf), "%d:%02d", totalSec / 60, totalSec % 60);
+  useStaticFont();
   display.displayText(buf, PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
   display.displayAnimate();
 }
@@ -2243,6 +2281,7 @@ static void showResetDigit(int secondsLeft) {
   static char buf[4];
   snprintf(buf, sizeof(buf), "%d", secondsLeft);
   display.displayClear();
+  useStaticFont();
   display.displayText(buf, PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
   display.displayAnimate();
 }
