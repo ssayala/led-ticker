@@ -70,6 +70,19 @@ def extract_bytes(src: str) -> list[int]:
     return vals
 
 
+# Hand-drawn overrides for glyphs the mechanical embolden mangles: their fine
+# internal detail (M/W's center chevron, N's diagonal, Q's tail) fills into a
+# solid blob or merges with the ring once emboldened in a narrow cell. Each is
+# drawn by hand — M/W at 7 cols for chevron room, N/Q at 6. Values are the column
+# list, bit 0 = top row. Applied after a-z folding, so lowercase picks these up too.
+GLYPH_OVERRIDES = {
+    "M": [0x7f, 0x7f, 0x02, 0x04, 0x02, 0x7f, 0x7f],
+    "W": [0x7f, 0x7f, 0x20, 0x10, 0x20, 0x7f, 0x7f],
+    "N": [0x7f, 0x7f, 0x06, 0x18, 0x7f, 0x7f],
+    "Q": [0x3e, 0x7f, 0x41, 0x41, 0xff, 0xbe],
+}
+
+
 def _embolden_cols(cols: list[int]) -> list[int]:
     """new[k] = cols[k] | cols[k-1], for k in 0..width (cols[-1]=cols[width]=0),
     yielding width+1 columns: a 2px-thick stroke that keeps internal gaps."""
@@ -103,13 +116,16 @@ def embolden(vals: list[int]) -> list[int]:
     out = vals[:HEADER_LEN]
     for idx, cols in enumerate(glyphs):
         ch = chr(first + idx)
+        tgt = chr(first + idx - 0x20) if "a" <= ch <= "z" else ch  # folded target
         src = cols
         if "a" <= ch <= "z":  # fold lowercase onto the uppercase glyph
             up = (first + idx - 0x20) - first
             if 0 <= up < len(glyphs):
                 src = glyphs[up]
+        if tgt in GLYPH_OVERRIDES:  # hand-drawn glyph beats the mechanical embolden
+            g = list(GLYPH_OVERRIDES[tgt])
         # Bold alphanumerics only (lowercase counts — it folds to a bold cap).
-        if ch.isascii() and ch.isalnum() and src and any(src):
+        elif ch.isascii() and ch.isalnum() and src and any(src):
             g = _embolden_cols(src)
         else:  # symbols, space, blank cells: stock weight, unchanged width
             g = list(src)
