@@ -70,16 +70,18 @@ def extract_bytes(src: str) -> list[int]:
     return vals
 
 
-# Hand-drawn overrides for glyphs the mechanical embolden mangles. Letters: A's
-# apex squares into a flat-top box; M/W's chevron, N's diagonal and Q's tail blob
-# up or merge with the ring in a narrow cell (M/W keep thin center arms so the
-# V/peak stays open — thickening fills a solid bar). Symbols: the up/down arrows'
-# open barbs fill into a solid blob when emboldened, so they get sharp bold
-# triangles by hand. M/W and the arrows are 7 cols, others 4-6. Values are the
-# column list, bit 0 = top row. Applied after a-z folding, so lowercase picks the
-# letter shapes up too.
+# Hand-drawn overrides for glyphs the mechanical embolden mangles. Letters:
+# M/W's chevron, N's diagonal and Q's tail blob up or merge with the ring in a
+# narrow cell (M/W keep thin center arms so the V/peak stays open — thickening
+# fills a solid bar). Symbols: the up/down arrows' open barbs fill into a solid
+# blob when emboldened, so they get sharp bold triangles by hand. M/W and the
+# arrows are 7 cols, others 4-6. Values are the column list, bit 0 = top row.
+# Applied after a-z folding, so lowercase picks the letter shapes up too.
+#
+# A takes the plain mechanical embolden (a flat-topped box), NOT a hand-drawn
+# peak: the scroll face shows the stock flat-topped A, and a peaked static A
+# would disagree with it. Match the scroll face over sharpening in isolation.
 GLYPH_OVERRIDES = {
-    "A": [0x7c, 0x7e, 0x13, 0x13, 0x7e, 0x7c],  # pointed apex
     "M": [0x7f, 0x7f, 0x02, 0x0c, 0x02, 0x7f, 0x7f],  # V to row 3
     "W": [0x7f, 0x7f, 0x20, 0x18, 0x20, 0x7f, 0x7f],  # peak to row 3
     "N": [0x7f, 0x7f, 0x06, 0x18, 0x7f, 0x7f],
